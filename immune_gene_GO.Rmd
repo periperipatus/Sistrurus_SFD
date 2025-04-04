@@ -1,0 +1,331 @@
+---
+title: "Getting Candidate Genes Immunity"
+author: "Peri Bolton"
+date: "2024-02-05"
+output: html_document
+---
+
+Here I am making notes about my process to collect candidate genes for SFD.
+
+# Gene Ontology QuickGO
+
+## Immune system process + Inflam
+
+- GO:0002376 (Immune system process)
+- GO:0006954 (Inflamation)
+I created a GO slim with these two terms in Humans (Hsa)
+
+Also extracted the same sets for *Anolis carolinensis* (Aca)
+
+
+```{r}
+library(ggvenn)
+library(ggplot2)
+library(tidyr)
+setwd("/Users/bolton.161/Library/CloudStorage/OneDrive-TheOhioStateUniversity/Rattlesnakes/Scate_SFD/analysis")
+#reading GO Slims
+slim1<- read.table("../data/candidate genes/QuickGO-annotations-1707233054746-20240206_immune_inflammation.tsv", sep="\t", fill=TRUE, quote="", header=TRUE)
+
+```
+
+## Silver et al GO terms.
+
+Check these terms against the Silver et al 2022 dataset of candidates to see if there are more GO terms I am missing
+
+```{r SilverEtAl2022, eval=FALSE}
+library(openxlsx)
+silver<- read.xlsx("../data/candidate genes/Silver_2022_mec16493-sup-0003-tables1-s4.xlsx", sheet=3, startRow = 2)
+silver$GO.term.accession<- trimws(silver$GO.term.accession)
+silver$GO.term.name<- trimws(silver$GO.term.name)
+length(unique(silver$GO.term.accession)) #441
+
+silver$Gene.name<- trimws(silver$Gene.name)
+
+
+silver_GO<- silver %>%
+  dplyr::rename(GO_ID=GO.term.accession,
+                GO_name=GO.term.name) %>%
+  filter(!duplicated(GO_ID)) %>%
+  dplyr::select(GO_ID,GO_name)
+
+slim_GO<- slim1 %>%
+  dplyr::rename(GO_ID=SLIMMED.FROM,
+                GO_name=GO.NAME) %>%
+  filter(!duplicated(GO_ID)) %>%
+  dplyr::select(GO_ID,GO_name)
+
+immune_GO_terms<- rbind(silver_GO, slim_GO)
+immune_GO_terms<- immune_GO_terms %>%
+  filter(!duplicated(GO_ID))
+
+#Immune GO terms to search 
+#looks like the full GO name got cut off from the Silver data so I am recombining this with a list of GO_IDs and names.
+obo<- read.csv("../data/GO_annot/go_ontology_obo_out.csv")
+obo <- obo %>% dplyr::rename(GO_ID=id)
+immune_GO_terms2<- merge(immune_GO_terms, obo, by="GO_ID", all.x=TRUE)
+immune_GO_terms2$diff<- ifelse(immune_GO_terms2$GO_name==immune_GO_terms2$name,"match","no_match") ## confirming that all the name differences are just minor typographical ones not major differences in function. 
+immune_GO_terms<- immune_GO_terms2 %>%
+  dplyr::select(GO_ID,name) %>%
+  dplyr::rename(GO_name=name)
+missing<- data.frame(GO_ID="GO:0050728",GO_name=obo$name[obo$GO_ID=="GO:0050728"])
+immune_GO_terms<- rbind(immune_GO_terms, missing)
+write.csv(immune_GO_terms,"../data/candidate genes/v2/immune_GO.csv")
+```
+
+Made a final list of GO terms to pull based on the GO slim of immune + inflammation terms, plus additional terms from the Koala immunity project Silver et al 2022).
+
+
+# KEGG
+
+Pull KEGG pathways for all organisms.
+
+## Anolis immune pathways 
+
+```{r Aca immune KEGG, eval=FALSE}
+Aca_immune_keggs<- c("ko04640", "ko04610", "ko04611", "ko04613", "ko04620", "ko04621", "ko04622", "ko04623", "ko04625", "ko04650", "ko04612", "ko04660", "ko04658", "ko04659", "ko04657", "ko04662", "ko04664", "ko04666", "ko04670", "ko04672", "ko04062")
+library(KEGGREST)
+library(stringr)
+
+out_data<- list()
+
+for(i in 1:length(Aca_immune_keggs)){
+
+  path<- keggGet(Aca_immune_keggs[i])
+  genes<- names(path[[1]]$ORTHOLOGY)
+  genenames<- data.frame(ko_genename=path[[1]]$ORTHOLOGY,ko_ID=names(path[[1]]$ORTHOLOGY))
+    acs_id <- keggLink("acs", genenames$ko_ID)
+    ko_ID<- names(acs_id)
+    if(length(acs_id==1)){
+      df<- data.frame(pathway_ID=rep(path[[1]]$ENTRY, length(acs_id)), 
+                      pathway_name=rep(path[[1]]$NAME,length(acs_id)),
+                      ko_ID=gsub("ko:","",ko_ID),
+                      Anolis_entrez=gsub("acs:","",acs_id))
+      df<- merge(df, genenames,by="ko_ID")
+      out_data[[i]]<- df
+    }else{
+      
+    }
+}
+ko_aca_immune_keggs<- do.call("rbind", out_data)
+
+write.csv(ko_aca_immune_keggs, file="../data/candidate genes/v2/Aca_immune_KEGG.csv", row.names=FALSE)
+```
+
+## Python immune pathways
+
+```{r Python KEGG, eval=FALSE}
+out_data<- list()
+
+for(i in 1:length(Aca_immune_keggs)){
+
+  path<- keggGet(Aca_immune_keggs[i])
+  genes<- names(path[[1]]$ORTHOLOGY)
+  genenames<- data.frame(ko_genename=path[[1]]$ORTHOLOGY,ko_ID=names(path[[1]]$ORTHOLOGY))
+    acs_id <- keggLink("pbi", genenames$ko_ID)
+    ko_ID<- names(acs_id)
+    if(length(acs_id==1)){
+      df<- data.frame(pathway_ID=rep(path[[1]]$ENTRY, length(acs_id)), 
+                      pathway_name=rep(path[[1]]$NAME,length(acs_id)),
+                      ko_ID=gsub("ko:","",ko_ID),
+                      Python_entrez=gsub("pbi:","",acs_id))
+      df<- merge(df, genenames,by="ko_ID")
+      out_data[[i]]<- df
+    }else{
+      
+    }
+}
+ko_pbi_immune_keggs<- do.call("rbind", out_data)
+
+write.csv(ko_pbi_immune_keggs, file="../data/candidate genes/v2/Pbi_immune_KEGG.csv", row.names=FALSE)
+```
+
+## Thamnophis immune pathways
+
+```{r Thamnophis KEGG, eval=FALSE}
+out_data<- list()
+
+for(i in 1:length(Aca_immune_keggs)){
+
+  path<- keggGet(Aca_immune_keggs[i])
+  genes<- names(path[[1]]$ORTHOLOGY)
+  genenames<- data.frame(ko_genename=path[[1]]$ORTHOLOGY,ko_ID=names(path[[1]]$ORTHOLOGY))
+    acs_id <- keggLink("tsr", genenames$ko_ID)
+    ko_ID<- names(acs_id)
+    if(length(acs_id==1)){
+      df<- data.frame(pathway_ID=rep(path[[1]]$ENTRY, length(acs_id)), 
+                      pathway_name=rep(path[[1]]$NAME,length(acs_id)),
+                      ko_ID=gsub("ko:","",ko_ID),
+                      Thamnophis_entrez=gsub("tsr:","",acs_id))
+      df<- merge(df, genenames,by="ko_ID")
+      out_data[[i]]<- df
+    }else{
+      
+    }
+}
+ko_tsr_immune_keggs<- do.call("rbind", out_data)
+
+write.csv(ko_tsr_immune_keggs, file="../data/candidate genes/v2/Tsr_immune_KEGG.csv", row.names=FALSE)
+```
+
+# BioMart
+
+
+```{r GO biomart Aca, eval=FALSE}
+library(biomaRt)
+new_GO_list<- read.csv("../data/candidate genes/v2/immune_GO.csv")
+new_GO_list<- new_GO_list$GO_ID
+
+## Anolis
+Aca<- useEnsembl(biomart="genes",dataset="acarolinensis_gene_ensembl")
+mart_out<- list()
+i<- new_GO_list[1]
+### Use biomaRt to collect genes with the above GO terms
+for(i in 1:length(new_GO_list)){
+
+mart_out[[i]]<- getBM(attributes=c("entrezgene_accession","external_gene_name" , "ensembl_gene_id","entrezgene_id","go_id","entrezgene_description"),values=new_GO_list[i], mart=Aca, filters="go")
+}
+mart_out3<- do.call("rbind",mart_out)
+test<- list(mart=unique(mart_out3$go_id), list=new_GO_list, slim=unique(toupper(slim1$SLIMMED.FROM)), silver=unique(silver$GO.term.accession))
+ggvenn(test)
+
+test_genes<- list(mart=unique(mart_out3$entrezgene_accession), slim=unique(toupper(Aca1$SYMBOL)), silver=unique(silver$Gene.name), kegg=unique(unique(immune_keggs_data$symbol)))
+ggvenn(test_genes)
+
+#not_immune<- mart_out2[which(!mart_out2$go_id %in% new_GO_list),]
+#filter not immune terms from this list
+Aca_biomart_GO<- mart_out3[which(mart_out3$go_id %in% new_GO_list),]
+Aca_biomart_GO<- Aca_biomart_GO %>%
+  dplyr::rename(GO_ID=go_id,
+                Anolis_entrezName=entrezgene_accession,
+                Anolis_externalName=external_gene_name,
+                Anolis_entrez=entrezgene_id,
+                Anolis_entrez_Description=entrezgene_description) 
+write.csv(Aca_biomart_GO, file="../data/candidate genes/v2/Aca_biomart_immune_GO.csv", row.names = FALSE)
+```
+
+
+# Make Final Immune List
+
+Going to Exclude the Human-> Anolis Ortholog process because this did not yield novel genes. Here I will combine datasets:
+
+1. Aca genes from BioMart Query of final GO list
+2. Aca genes from kegg pathways
+
+These are all in the one file "../data/candidate genes/Aca_immune_all_mart.csv"
+
+Then, include
+* Pbi genes from kegg pathways
+* Tsi genes from kegg pathways
+
+```{r}
+biomart_aca_GO<- read.csv("../data/candidate genes/v2/Aca_biomart_immune_GO.csv")
+ko_aca_immune_keggs<- read.csv("../data/candidate genes/v2/Aca_immune_KEGG.csv")
+anolis_functions<- biomart_aca_GO %>%
+  full_join(ko_aca_immune_keggs, by="Anolis_entrez") %>%
+  dplyr::select(!ensembl_gene_id)
+  
+write.csv(anolis_functions,"../data/candidate genes/v2/Aca_immune_KEGG_GO.csv")
+```
+
+
+
+# Crotalus viridis / Sisturus catenatus orthologs
+
+Total set of cviridis orthologs.
+
+```{r read and summarize ortho info}
+library(stringr)
+library(ggvenn)
+library(tidyr)
+
+ortho<- read.table("../data/Mason unpubl/Orthogroups.tsv", fill=TRUE, sep="\t", header=TRUE)
+colnames(ortho)<- c("Orthogroup","geneID","Scate","Sterg")
+#head(ortho)
+#ortho[5,]
+ortho$geneID<- gsub("_cds","",ortho$geneID)
+
+
+ortho_dispersed<- ortho %>% separate_longer_delim(geneID, delim = ",") 
+ortho_dispersed<- ortho_dispersed %>% separate_longer_delim(Scate, delim=",")
+ortho_dispersed$geneID<- trimws(ortho_dispersed$geneID)
+ortho_dispersed$Scate<- trimws(ortho_dispersed$Scate)
+```
+
+
+```{r read annotation}
+library(rtracklayer)
+
+annot<- readGFF("../data/Mathur_2024/cvir_genes.gff")
+annot$Anolis_Genename<- word(annot$Anolis_Homolog,4,4, sep="_")
+annot$Anolis_Genename<- toupper(annot$Anolis_Genename)
+annot$Anolis_entrez<- word(annot$Anolis_Homolog,3,3, sep="_")
+annot$Anolis_Protein<- word(annot$Anolis_Homolog,1,2, sep="_")
+annot$Anolis_Protein<- gsub("\\.[0-9]","",annot$Anolis_Protein)
+annot$Python_Genename<- word(annot$Python_Homolog,4,4, sep="_")
+annot$Python_entrez<-word(annot$Python_Homolog,3,3, sep="_")
+annot$Thamnophis_Genename<- word(annot$Thamnophis_Homolog,4,4,sep="_")
+annot$Thamnophis_entrez<- word(annot$Thamnophis_Homolog,3,3, sep="_")
+
+## remove duplicates
+#annot$geneID<- gsub("\\:exon\\:[0-9]+","",annot$ID)
+annot<- as.data.frame(annot)
+annot$geneID<- word(annot$ID,1,1, sep="\\:")
+annot<- annot[!duplicated(annot$geneID),]
+annot<- annot[grepl("-mRNA-1",annot$geneID),]
+#keep only mRNA annotations that were possible for calculating orthology.
+
+ortho_dispersed_annot<- merge(ortho_dispersed, annot, by="geneID")
+ortho_dispersed_annot$geneID<- gsub("-mRNA-[0-9]","",ortho_dispersed_annot$geneID)
+
+```
+
+```{r comparing with immune annotations}
+Aca_immune<- read.csv("../data/candidate genes/v2/Aca_immune_KEGG_GO.csv")
+Aca_immune$Anolis_entrez<- as.character(Aca_immune$Anolis_entrez)
+Pbi_immune<- read.csv("../data/candidate genes/v2/Pbi_immune_KEGG.csv")
+Pbi_immune$Python_entrez<- as.character(Pbi_immune$Python_entrez)
+Tsi_immune<- read.csv("../data/candidate genes/v2/Tsr_immune_KEGG.csv")
+Tsi_immune$Thamnophis_entrez<- as.character(Tsi_immune$Thamnophis_entrez)
+
+#find Anolis annotations in Cvi genomes with immune entrez or gene names
+
+Cvi_immune_aca<- ortho_dispersed_annot %>%
+  inner_join(Aca_immune, by="Anolis_entrez") %>%
+  dplyr::select(geneID,Orthogroup,Scate,Anolis_entrez,Anolis_Genename,Anolis_entrezName,GO_ID,pathway_ID,pathway_name) %>%
+  filter(!is.na(Anolis_entrez)) %>%
+  dplyr::rename(Anolis_pathway_ID=pathway_ID,Anolis_pathway_name=pathway_name)
+  
+Cvi_immune_pbi<- ortho_dispersed_annot %>%
+  inner_join(Pbi_immune, by="Python_entrez") %>%
+  dplyr::select(geneID,Orthogroup, Scate, Python_entrez,pathway_ID,pathway_name) %>%
+  filter(!is.na(Python_entrez)) %>%
+  dplyr::rename(Python_pathway_ID=pathway_ID,Python_pathway_name=pathway_name)
+  
+Cvi_immune_tsi<- ortho_dispersed_annot %>%
+  inner_join(Tsi_immune, by="Thamnophis_entrez") %>%
+  dplyr::select(geneID,Orthogroup,Scate,Thamnophis_entrez,pathway_ID,pathway_name) %>%
+  filter(!is.na(Thamnophis_entrez)) %>%
+  dplyr::rename(Thamnophis_pathway_ID=pathway_ID,Thamnophis_pathway_name=pathway_name)
+
+
+Cvi_immune_annot <- Cvi_immune_aca %>%
+  full_join(Cvi_immune_pbi,by=c("geneID","Orthogroup","Scate")) %>%
+  full_join(Cvi_immune_tsi,by=c("geneID","Orthogroup","Scate"))
+
+write.table(Cvi_immune_annot, "../data/candidate genes/v2/Cvi_immune_annot.txt", row.names = FALSE, sep="\t")
+
+```
+
+
+```{r immune gene summary}
+Cvi_immune_annot<- read.table("../data/candidate genes/v2/Cvi_immune_annot.txt", header=TRUE, sep="\t", quote = "\"")
+immune_summary<- Cvi_immune_annot %>% group_by(Orthogroup) %>% summarise(n_Cviri=length(unique(geneID)),n_Scate=length(unique(Scate)))
+
+immune_summary2<- data.frame(type=c("single_copy","multi_Cviri","multi_Scate","multi_copy"),number=c(nrow(immune_summary[which(immune_summary$n_Cviri==1 & immune_summary$n_Scate==1),]),nrow(immune_summary[which(immune_summary$n_Cviri>1 & immune_summary$n_Scate==1),]),nrow(immune_summary[which(immune_summary$n_Cviri==1 & immune_summary$n_Scate>1),]), nrow(immune_summary[which(immune_summary$n_Cviri>1 & immune_summary$n_Scate>1),])))
+
+
+ggplot(immune_summary2, aes(x=type, y=number)) + geom_bar(stat="identity") + labs(title=paste("total Cviri immune genes =",sum(immune_summary$n_Cviri),"total Scate immune genes =",sum(immune_summary$n_Scate)), y="number orthogroups") + theme_bw()
+
+
+```
+

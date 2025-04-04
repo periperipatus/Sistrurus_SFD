@@ -1,0 +1,3897 @@
+---
+title: "What do we know about genes underlying resistance or susceptibility to snake fungal disease"
+title-block-banner: true
+author:
+  - name: Peri E. Bolton
+    orcid: 0000-0002-2057-1973
+    email: bolton.161@osu.edu
+    affiliations: Department of Evolution, Ecology and Organismal Biology, The Ohio State University
+  - name: Andrew Mason (OrthoFinder)
+    email: mason.501@osu.edu
+    affiliations: Department of Evolution, Ecology and Organismal Biology, The Ohio State University
+  - name: Samarth Mathur (FST)
+    email: mathur.112@osu.edu
+    affiliations: Department of Evolution, Ecology and Organismal Biology, The Ohio State University
+  - name: H. Lisle Gibbs
+    email: gibbs.128@osu.edu
+    affiliations: Department of Evolution, Ecology and Organismal Biology, The Ohio State University
+date: '`r lubridate::today()`'
+engine: knitr
+format:
+  html:
+    code-fold: true
+    code-tools: true
+    code-line-numbers: true
+    embed-resources: true
+    html-math-method: mathml
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    toc-location: left
+    toc-title: "Contents"
+    number-sections: true
+    number-depth: 3
+    theme: 
+      - minty
+    page-layout: full
+    grid: 
+      margin-width: 250px
+output:
+  html_document:
+      df_print: paged
+params:
+  workdir: "/Users/bolton.161/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/analysis"
+  datadir: "/Users/bolton.161/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/data"
+  outdir: "/Users/bolton.161/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/results"
+bibliography: metadata/references.bib
+csl: metadata/nature.csl
+knitr:
+  opts_chunk:
+    fig.path: /Users/bolton.161/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/results/report/figures/
+---
+
+\flushleft
+
+```{r setup, message = FALSE, warning = FALSE, echo=FALSE}
+require("knitr")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.pos="H", fig.width=12, fig.height=7)
+path = dirname(params$workdir)
+knitr::opts_knit$set(root.dir=path)
+```
+
+```{r}
+#| label: config
+#| echo: false
+#setwd("G:/My Drive/Rattlesnakes/Scate_SFD/analysis")
+#setwd("~/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/analysis")
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(viridis)
+#library(ggh4x)
+library(ggvenn)
+library(openxlsx)
+library(rstatix)
+library(gprofiler2)
+library(reshape2)
+library(scales)
+library(rrvgo)
+library(clusterProfiler)
+library(openxlsx)
+workdir<- "~/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/analysis"
+datadir<- "~/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/data"
+outdir<- "~/OneDrive - The Ohio State University/Rattlesnakes/Scate_SFD/results"
+
+source(paste0(workdir,"/config.R"))
+source(paste0(workdir,"/functions.R"))
+
+
+MHC_paralogs<- c("Scate05828","Scate05830","Scate05831","Scate05832","Scate05833","Scate05835","Scate05836","Scate05837","Scate05838","Scate05839","Scate05840","Scate05841","Scate05844","Scate05845","Scate05854","Scate05855","Scate05856","Scate05857","Scate05858","Scate05859","Scate05860","Scate05861","Scate05862","Scate05863","Scate05865","Scate05866","Scate05867","Scate05868","Scate05869","Scate05871","Scate05872","Scate05873","Scate05874","Scate05875","Scate05876","Scate05877","Scate05878")
+upper<- readLines(paste0(datadir,"/lists/genelist_upper10.txt"))
+upper<- gsub("-RA","",upper)
+lower<- readLines(paste0(datadir,"/lists/genelist_lower10.txt"))
+lower<- gsub("-RA","",lower)
+dos<- c(upper,lower)
+immune_original<- readLines(paste0(datadir,"/lists/genelist_immune.txt"))
+immune_original<- gsub("-RA","",immune_original)
+immune<- readLines(paste0(datadir,"/lists/genelist_immune2.txt"))
+immune<- gsub("-RA","",immune)
+immune<- c(immune,	"Scate15657") #for some reason TLR5 didn't make it into V2... 
+DEG<- readLines(paste0(datadir,"/lists/genelist_SFD_DEGs.txt"))
+DEG<- gsub("-RA","",DEG)
+random<- readLines(paste0(datadir,"/lists/genelist_random_geneIDs.txt"))
+
+
+
+mass<- c("KLDR","BERG","BPNP","CCRO","CEBO","JENN","KBPP","MOSQ","PRDF","ROME","SPVY","SSSP","WLRD")
+pop3<- c("STER","KLDR","CEBO")
+pops<- c("STER","KLDR")
+
+
+viridispairs<- c("#440154","#63017b","#8102a0","#125750","#19786e","#1f968a","#2a3f68","#355084","#5779bb","#3bae4c","#40bd52","#69cc78")
+
+keep<- c("keep","pops","mass","outdir","datadir","DEG","immune","lower","upper","hwecols","picols", "basesize", "baselwd","pop3", "gene_categories")
+
+```
+
+# Abstract
+
+Genes can contribute to whether a host is susceptible or recovers from a disease. Variation in these genes can be important for how a population responds to current and novel pathogens. However, experiments to characterize these genes are unethical to conduct in endangered species. Moreover, pathogens with sub-lethal effects, difficult diagnosis and/or hosts that are difficult to follow in the wild means that natural experimental data is scarce or absent. This is the case for snake fungal disease (caused by *Ophidiomyces ophidiicola*) in endangered Eastern massasauga rattlesnakes (*Sistrurus catenatus*). Here, we suggest that genes experimentally shown to be inolved in disease process in *Crotalus viridis* may provide a useful backdoor to narrowing down the set of SFD relevant genes, particularly those with signatures of selection within exposed species. We conduct diversity and SFS-based neutrality tests on a set of 1048 (actually a subset for this report) orthologs in two threatened *S. catenatus* populations in Ohio, and compare with outbred sister species *S. tergeminus*. We show that diversity in these genes is reduced in *S. catenatus*, particularly in populations with small N\[e\] (CEBO). However, MHC Class I paralogs are substantially more diverse than than others. Further, we identify a set of genes that appear to have non-synonymous sites under divergent selection in across the sampled *S. catenatus* populations.
+
+# Methods
+
+## Candidate gene selection
+
+We reasoned that genes that were functionally relevant to snake fungal disease resiliance/susceptibility in *Sistrurus catenatus* were from three main categories (@fig-venn)
+
+-   Genes with known immune system function
+
+-   Those genes previously identified as involved in disease process in *Crotalus viridis* by differential expression analysis [@mathur2024]
+
+-   Genes under selection in *S. catenatus.* These genes were identified using the upper and lower 10% direction of selection (DoS) statistics on divergence and polymorphism data in synonymous and non-synonymous sites [@mathur2023]
+
+We reasoned that genes in multiple functional categories are more likely to be relevant to disease susceptibility/resistance than those involved in disease process alone. And that genes which show some evidence of on-going selection might be particularly important.
+
+We used `OrthoFinder` to identify orthologs between *C. viridis* and *S. catenatus* genome annotations. Then we linked the differentially expressed genes from *C. viridis* to its ortholog in *S. catenatus*, as a putative set of disease process genes in *S. catenatus*. The 855 unique DEGs in *C. viridis* corresponded to 1048 unique genes in *S. catenatus*.
+
+Our candidate set of immune genes were broadly based on immune and inflammatory processes. Immune genes were identified in *C. viridis* based on GO and KEGG terms for the three species used for functional annotation: *Anolis carolinensis*, *Python vittatus* and *Thamnophis sirtalis*. These genes were based on a set of GO terms derived from a GOSlim query of GO:0002376 (Immune system process), GO:0006954 (Inflammation) and the set of immune GO terms used in [@silver2022], and KEGG annotations in these species. The specific query terms are listed in [Table XX]{style="color:red"}. The genes for these species associated with these terms were downloaded using R packages `protti::fetch_quickgo` and `KEGGREST::keggGet`. Then, any immune genes from these species were considered a potential immune gene in *C. viridis*, and by orthology *S. catenatus*.
+
+```{r}
+#| label: fig-venn
+#| fig.width: 7
+#| fig.height: 4
+#| fig-cap: "Eastern Massasauga Rattlesnake genes in overlapping and putatively functional categories. It is these functional categories that we will apply throughout"
+
+genes<- list("upper DoS"=upper, "lower DoS"=lower, "immune genes"=immune, "DEG ortholog"=DEG)
+#genes<- list("immune genes"=immune, "immune genes2"=immune2,"DEG ortholog"=DEG)
+ggvenn(genes, set_name_size = 6, text_size=5, stroke_size=0.4) + coord_cartesian(clip="off")
+
+genes<- list("immune genes"=immune, "SFD DEG"=DEG)
+g<- ggvenn(genes, set_name_size = 6, text_size=5, stroke_size=0.4, show_percentage = FALSE) + coord_cartesian(clip="off")
+ggsave(filename=paste0(outdir,"/poster/genes_venn.pdf"), plot=g, device="pdf", height=, width=)
+```
+
+## Selection in disease process genes.
+
+For this preliminary analysis we analysed all 31 DEGs that were identified as under selection in *S. catenatus* [@mathur2023], a subset of 100 DEGs, and a random set of 100 genes from the genome. We compared the largest *S. catenatus* population at Killdeer Plains Wildlife Area, OH (KLDR), to a small population at Cedar Bog, OH (CEBO). We further compared patterns against outbred sister species *S. tergeminus*, mapped to the same reference *S. catenatus* reference genome. We wanted to explore whether selection was ongoing in an outbred species, to compare the the effects in an outbred species with the bottlenecked *S. catenatus*.
+
+To explore whether there was evidence of selection, we used `angsd v0.940` to calculate nucleotide diversity (π), heterozygosity and Tajima's D separately for synonymous and non-synonymous sites per focal gene. We labelled degenerate sites using python script `degenotate v1.2.4`[@sackton2024]. 2- and 3-fold degenerate sites were labelled as non-synonymous if a variant was considered as such by `SnpEff v5.2` in a genotyped file for another project (Mathur et al Unpubl, [@cingolani2012program]).
+
+```{bash}
+#| label: degenotate.slurm
+#| eval: false
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=4
+#SBATCH --time=12:00:00
+#SBATCH --account=
+#SBATCH --job-name=job_degenotate
+#SBATCH --output=job_degenotate-%j
+#SBATCH --mail-type=begin        # send email when job begins
+#SBATCH --mail-type=end          # send email when job ends
+#SBATCH --mail-user=bolton.161@osu.edu
+
+
+source ~/miniconda3/bin/activate ~/miniconda3/envs/degenotate/
+INDIR=/fs/ess/scratch/PAS1533/peri/Scate_SFD
+DEGENOTATE=/users/PAS1533/boltonp88/local/src/degenotate
+
+python $DEGENOTATE/degenotate.py -a $INDIR/ref/Scate_HiC_rnd4.all.putative.function.gff -g $INDIR/ref/Scatenatus_HiC_v1.1.fasta -o $INDIR/ref/degenotate/Scate.degeneracy
+
+```
+
+```{bash}
+#| label: job_fgd_degen
+#| eval: false
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=24:00:00
+#SBATCH --cpus-per-task=1		# cpu-cores per task (>1 if multi-threaded tasks)
+#SBATCH --account=PAS1533
+#SBATCH --array=1-14
+#SBATCH --job-name=job_fgd_div_DEG
+#SBATCH --output=job_fgd_div_DEG-%A.%a.out
+#SBATCH --mail-type=begin		# send email when job begins
+#SBATCH --mail-type=end		  # send email when job ends
+#SBATCH --mail-user=bolton.161@osu.edu
+
+## DESCRIPTION ##
+# This code is after trying JUST the VCFtools variants using the method from 
+# Mathur et al 2023 PNAS. I wasn't happy with using the same denominator (CDS) 
+# for ns and s sites, so I have incorporated this into this code
+# Further, Lisle wanted to see number of "derived" alleles 
+# Thus, I have calculated these with respect to the S. terg pseudoreference
+# which incorporated major non-ref allelic variants from Sterg into the Scate genome.
+# Counting genotypes is done with angsd parameters -doMajorMinor 4 -doHwe 1
+# ALSO only want to include genes that are selected DEGs OR selected immune DEGs (30 genes).
+
+#### NOTE: 20240618 - updated job submission format to work with 1003 genes remaining in DEGs. 
+
+ANGSD=/users/PAS1533/boltonp88/local/src/angsd
+INDIR=/fs/ess/scratch/PAS1533/peri/Scate_SFD
+
+
+config=$INDIR/lists/final_172_pops.noabc.list
+#config=$INDIR/test_pops.txt #2 pops
+
+POP=$(awk -v num="$SLURM_ARRAY_TASK_ID" 'FNR==num {print $1}' ${config})
+
+##PATHS
+
+#make a dir for the angsd outputs
+mkdir $INDIR/VOI/pi_DEG/$POP
+OUTDIR=$INDIR/VOI/pi_DEG/$POP
+
+PSREF=$INDIR/ref/Scatenatus_V1.1_STERpseudoref.fasta
+BEDDIR=$INDIR/beds
+BAMLISTDIR=$INDIR/lists/bamlists
+BAMDIR=$INDIR/bams
+
+##LISTS
+
+#list of names in the population
+poplist=$INDIR/lists/final_172_${POP}.txt
+
+rm $BAMLISTDIR/$POP.bamlist
+
+#make a bamlist for the population
+cat $poplist | while read line; do echo ${BAMDIR}"/"${line}"_mark_dups.sorted.bam" >> $BAMLISTDIR/$POP.bamlist ; done
+
+bamlist=$BAMLISTDIR/${POP}.bamlist
+
+genelist=$INDIR/lists/genelist_other_DEG1.txt
+
+#genes_bed=$BEDDIR/test_genes.bed
+genes_bed=$BEDDIR/DEG_genes_geneIDs.bed
+cds_bed=$BEDDIR/DEG_CDS_geneIDs.bed
+
+chunksize=20
+end=4
+prev_job_ids=""
+cpus=8
+
+for ((i=0; i<=end; i++))
+do
+	TIME=$(date '+%H:%M:%S')
+	batchname=$((i + 1))
+	echo starting batch $batchname at $TIME
+	start_line=$((i * chunksize + 1))
+	head -n $((start_line + chunksize - 1)) "$genelist" | tail -n $chunksize > "${OUTDIR}/genelist_batch_${batchname}.txt"
+	
+	infile="${OUTDIR}/genelist_batch_${batchname}.txt"
+	job_ids=""
+
+	while read g; do
+	
+		TIME=$(date '+%H:%M:%S')
+		
+		script_name=$INDIR/VOI/pi_DEG/genejobs/${POP}.${batchname}.${g}.sh
+		
+		echo building ${POP}.${batchname}.${g}.sh script at $TIME
+		echo
+		
+		  echo "#!/bin/sh -l 
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=3:00:00
+#SBATCH --cpus-per-task=8		# cpu-cores per task (>1 if multi-threaded tasks)
+#SBATCH --mem-per-cpu=8G		 # memory per cpu-core
+#SBATCH --account=PAS1533
+#SBATCH --job-name=${POP}.${batchname}.${g}.fgd.angsd.DEG
+#SBATCH --output=${POP}.${batchname}.${g}.fgd.angsd-%A.%a.out
+		
+		
+		source ~/miniconda3/bin/activate ~/miniconda3/envs/angsd/
+		
+		BAMLISTDIR=$INDIR/lists/bamlists
+		
+		bamlist=$BAMLISTDIR/${POP}.bamlist
+		
+		
+		#get the first line of the genes names file
+		
+		echo "this is ${g}"
+		echo
+		echo "finding bedfiles for $g"
+		#subset the bed files for that gene
+		grep $g $genes_bed > $BEDDIR/${POP}.${g}_gene.bed
+		grep $g $cds_bed > $BEDDIR/${POP}.${g}_cds.bed
+		
+		echo
+		echo "now lets cut these bams into smaller bams $g"
+		
+		while read s; do
+			
+			sample=\"\$(basename \"\$s\")\"
+			sample=\"\$(echo \"\$sample\" | sed 's/_mark_dups.sorted.bam//')\"
+			
+			
+			samtools view \$s \
+			-b -h -o $BAMDIR/ingene/${POP}.\${sample}.in.${g}.genes.bam \
+			-L $BEDDIR/${POP}.${g}_gene.bed
+			
+			samtools sort -@ ${cpus} -T $BAMDIR/ingene/${POP}.\${sample}.in.${g}.genes.bam.temp \
+			-O BAM -o $BAMDIR/ingene/${POP}.\${sample}.in.${g}.genes.sorted.bam \
+			$BAMDIR/ingene/${POP}.\${sample}.in.${g}.genes.bam 
+			
+			samtools index -@ ${cpus} -b $BAMDIR/ingene/${POP}.\${sample}.in.${g}.genes.sorted.bam
+			
+			#make a list with all those files for angsd
+			echo $BAMDIR/ingene/${POP}.\${sample}.in.${g}.genes.sorted.bam \
+			>> $BAMLISTDIR/${POP}.${g}.list
+			
+			
+			echo "processed \$sample for ${g} and put into file ${BAMLISTDIR}/${POP}.${g}.list"
+			
+		done < $bamlist
+		
+		bamlist_gene=$BAMLISTDIR/${POP}.${g}.list
+		
+		echo \$bamlist_gene
+		
+		for e in 0 2 3 4; do
+			
+			echo "doing $g \$e sites"
+			echo 
+			echo "intersecting \${e}th positions $g"
+			
+			#bedtools intersect \
+			#-b $BEDDIR/${POP}.${g}_cds.bed \
+			#-a $BEDDIR/degen_sites_\${e}.bed \
+			#-wa > $BEDDIR/${POP}.${g}.degen\${e}.positions.bed
+			
+			grep $g $BEDDIR/degen_sites_\${e}.bed > $BEDDIR/${POP}.${g}.degen\${e}.positions.bed
+			
+			echo "making pos file \${e}th $g"
+			echo
+			
+			if [[ \$e -eq 2 ]] || [[ \$e -eq 3 ]]; then 
+		
+				echo "\${e}th degen sites $g overlap with known missense sites class as nonsyn"
+				echo
+				bedtools intersect \
+				-a $BEDDIR/${POP}.${g}.degen\${e}.positions.bed \
+				-b $BEDDIR/final172.allchr.finalSNPs.missense.positions.bed \
+				-wa >> $BEDDIR/${POP}.${g}.ns.positions.bed
+				
+				#-v Only report those entries in A that have no overlap in B. 
+				bedtools intersect \
+				-a $BEDDIR/${POP}.${g}.degen\${e}.positions.bed \
+				-b $BEDDIR/final172.allchr.finalSNPs.missense.positions.bed \
+				-v >> $BEDDIR/${POP}.${g}.syn.positions.bed
+		
+			
+			elif [[ \$e -eq 0 ]]; then
+				
+				echo "\$e $g all possible changes nonsynonymous"
+				cat $BEDDIR/${POP}.${g}.degen\${e}.positions.bed >> $BEDDIR/${POP}.${g}.ns.positions.bed
+				
+				
+			elif [[ \$e -eq 4 ]]; then
+				echo "\$e $g all possible changes synonymous"
+				cat $BEDDIR/${POP}.${g}.degen\${e}.positions.bed >> $BEDDIR/${POP}.${g}.syn.positions.bed
+			
+			fi
+				
+			echo "\$e $g remove degenerate sites bed"
+			echo
+			rm $BEDDIR/${POP}.${g}.degen\${e}.positions.bed
+				
+		done
+			
+		for e in ns syn; do
+		
+			echo "\$e $g sort bed"
+			sort -k 1,1 -k2,2n $BEDDIR/${POP}.${g}.\${e}.positions.bed \
+			> ${POP}.${g}.\${e}.tmp && \
+			mv ${POP}.${g}.\${e}.tmp $BEDDIR/${POP}.${g}.\${e}.positions.bed
+			
+			echo
+			echo "\$e $g make pos file"
+			awk '{print \$1\"\\t\"\$3}' \
+			$BEDDIR/${POP}.${g}.\${e}.positions.bed \
+			> $BEDDIR/${POP}.${g}.\${e}.positions.txt
+			
+			echo
+			echo "\$e $g angsd index"
+			$ANGSD/angsd sites index $BEDDIR/${POP}.${g}.\${e}.positions.txt
+			
+			echo
+			echo "angsd calc $g \$e"
+			
+			#applying some extra quality filters here
+			
+			$ANGSD/angsd -P ${cpus} -dosaf 1 -GL 1 \
+			-anc $INDIR/ref/Scatenatus_HiC_v1.1.fasta \
+			-ref $INDIR/ref/Scatenatus_HiC_v1.1.fasta \
+			-doMajorMinor 4 -doHWE 1 -minHetFreq -1 \
+			-remove_bads 1 -uniqueOnly 1 \
+			-minMapQ 20 -minQ 20 \
+			-bam \$bamlist_gene \
+			-sites $BEDDIR/${POP}.${g}.\${e}.positions.txt \
+			-out $OUTDIR/${POP}.${g}.\${e}
+			
+			echo "calc SFS $g \$e"
+			
+			$ANGSD/misc/realSFS -P ${cpus} -fold 1 \
+			$OUTDIR/${POP}.${g}.\${e}.saf.idx -maxIter 100 \
+			> $OUTDIR/${POP}.${g}.\${e}.sfs
+			
+			#thetas
+			echo "calc thetas $g \$e"
+			
+			$ANGSD/misc/realSFS saf2theta \
+			$OUTDIR/${POP}.${g}.\${e}.saf.idx \
+			-sfs $OUTDIR/${POP}.${g}.\${e}.sfs -fold 1 \
+			-outname $OUTDIR/${POP}.${g}.\${e}
+			
+			$ANGSD/misc/thetaStat do_stat \
+			$OUTDIR/${POP}.${g}.\${e}.thetas.idx \
+			-outnames $OUTDIR/${POP}.${g}.\${e}
+		done
+
+		
+			echo
+			echo all done 
+			" \
+			> $script_name
+			
+			cd $INDIR/VOI/pi_DEG/genejobs/
+		
+		
+			TIME=$(date '+%H:%M:%S')
+			
+      if [[ -n $(ls -l $INDIR/VOI/pi_DEG/${POP}/${POP}.${g}.*pestPG) ]]; then
+        echo ${POP}.${g} exists not submitting
+      else
+        job_id=$(sbatch $script_name)
+        
+        
+        job_id=$(echo $job_id | awk '{print $4}')
+        
+        echo submitting $script_name at $TIME as job_id $job_id
+        echo
+        
+        job_ids="${job_ids}:${job_id}"
+      fi
+			  
+	done < $infile
+
+	prev_job_ids="${job_ids#:}"
+	echo previous job_IDs $prev_job_ids
+	echo
+	
+	while [[ -n $(squeue -u boltonp88 -j $(echo $prev_job_ids | tr ':' ',') | awk '{print $1}' | tail -n +2 ) ]]; do
+		#while squeue -u boltonp88 -j $(echo $prev_batch_job_ids | tr ':' ',') > /dev/null; do	
+		echo "Waiting for batch $batchname jobs to complete..."
+		echo 
+        #echo $(squeue -j $(echo $prev_batch_job_ids | tr ':' ','))
+		echo 
+		echo checking grep $(squeue -u boltonp88 -j $(echo $prev_job_ids | tr ':' ',') | awk '{print $1}' | tail -n +2)
+		sleep 15m
+	done
+
+	TIME=$(date '+%H:%M:%S')
+	echo done batch $batchname at $TIME
+	
+done
+
+#clean up
+rm ${BEDDIR}/${POP}*
+rm ${BAMDIR}/ingene/${POP}*
+rm ${BAMLISTDIR}/${POP}*
+```
+
+We compared non-synonymous site diversity to synonymous site diversity, and to diversity in 1000 gene-desert regions on assembled chromosomes with a non-overlapping window-size of 25,000 bp. Gene-desert regions were at least 500 kb up- and down-stream from coding sequences [@mathur2023].
+
+```{bash}
+#| label: job_genedesert_div.slurm
+#| eval: FALSE
+
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=48:00:00
+#SBATCH --cpus-per-task=8       # cpu-cores per task (>1 if multi-threaded tasks)
+#SBATCH --mem-per-cpu=12G         # memory per cpu-core
+#SBATCH --account=PAS1533
+#SBATCH --array=1-13
+#SBATCH --job-name=job_genedesert_div
+#SBATCH --output=job_genedesert_div-%A.%a.out
+#SBATCH --mail-type=begin        # send email when job begins
+#SBATCH --mail-type=end          # send email when job ends
+#SBATCH --mail-user=bolton.161@osu.edu
+
+
+source ~/miniconda3/bin/activate ~/miniconda3/envs/angsd/
+ANGSD=/users/PAS1533/boltonp88/local/src/angsd
+module load samtools
+
+INDIR=/fs/ess/scratch/PAS1533/peri/Scate_SFD
+
+config=$INDIR/lists/final_172_pops.noabc.list
+#config=$INDIR/test_pops.txt #2 pops
+
+POP=$(awk -v num="$SLURM_ARRAY_TASK_ID" 'FNR==num {print $1}' ${config})
+
+##PATHS
+
+#make a dir for the angsd outputs
+
+
+BAMINDIR=$INDIR/bams
+BAMOUTDIR=$INDIR/geneDesert/bams
+OUTDIR=$INDIR/geneDesert/angsd_out
+BEDDIR=$INDIR/beds
+BAMLISTDIR=$INDIR/lists/bamlists
+PSREF=$INDIR/ref/Scatenatus_V1.1_STERpseudoref.fasta
+
+##LISTS
+
+#list of names in the population
+poplist=$INDIR/lists/final_172_${POP}.txt
+
+#make a bamlist for the population #presumably this is already done from the fgd one.
+cat $poplist | while read line; do echo ${BAMINDIR}"/"${line}"_mark_dups.sorted.bam" >> $BAMLISTDIR/${POP}.gd.bamlist ; done
+
+bamlist=$BAMLISTDIR/${POP}.gd.bamlist
+
+
+while read s; do
+
+  sample=$(basename $s)
+  sample=$(echo $sample | sed 's/_mark_dups.sorted.bam//')
+  
+  #this removes the genes from the dataset. 
+  samtools view $s -@ 8 \
+  -b -h -o $BAMOUTDIR/exclude/${sample}.inGene.bam \
+  -U $BAMOUTDIR/include/${sample}.outGene.bam \
+  -L $BEDDIR/Scate_HiC.sortedgff_justgenes.bed
+
+  samtools view  -@ 4 -b -h \
+  -o $BAMOUTDIR/exclude/${sample}.inGene500.bam \
+  -U $BAMOUTDIR/include/${sample}.outGene500.bam \
+  -L $BEDDIR/genedesert.500kb.updown.tab.bed \
+  $BAMOUTDIR/include/${sample}.outGene.bam
+  
+   
+  samtools sort -@ 8 -T $BAMOUTDIR/include/${sample}.outGene500.bam.temp \
+  -O BAM -o $BAMOUTDIR/include/${sample}.outGene500.sorted.bam \
+  $BAMOUTDIR/include/${sample}.outGene500.bam
+      
+  samtools index -@ 8 -b $BAMOUTDIR/include/${sample}.outGene500.sorted.bam
+
+  #make a list with all those files for angsd
+  echo $BAMOUTDIR/include/${sample}.outGene500.sorted.bam \
+  >> $BAMLISTDIR/${POP}.genedesert.list
+
+done < $bamlist
+
+bamlist=$BAMLISTDIR/${POP}.genedesert.list
+
+$ANGSD/angsd -P 8 -dosaf 1 -GL 1 \
+-doMajorMinor 4 -doHWE 1 -minHetFreq -1 \
+-remove_bads 1 -uniqueOnly 1 \
+-minMapQ 20 -minQ 20 \
+-anc $PSREF \
+-ref $PSREF \
+-bam $bamlist 
+-out $OUTDIR/${POP}.genedesert.sites
+
+echo calculate SFS
+
+$ANGSD/misc/realSFS -P 8 \
+$OUTDIR/${POP}.genedesert.sites.saf.idx -maxIter 100 \
+> $OUTDIR/${POP}.genedesert.sites.sfs
+
+echo calc thetas
+
+$ANGSD/misc/realSFS saf2theta \
+$OUTDIR/${POP}.genedesert.sites.saf.idx \
+-sfs $OUTDIR/${POP}.genedesert.sites.sfs \
+-outname $OUTDIR/${POP}.genedesert.sites
+
+echo do_stat
+
+$ANGSD/misc/thetaStat do_stat \
+$OUTDIR/${POP}.genedesert.sites.thetas.idx \
+-outnames $OUTDIR/${POP}.genedesert.sites
+
+echo persite theta
+
+$ANGSD/misc/thetaStat print \
+$OUTDIR/${POP}.genedesert.sites.thetas.idx 
+> $OUTDIR/${POP}.persite.sites.theta
+
+echo windowed theta
+
+$ANGSD/misc/thetaStat do_stat \
+$OUTDIR/${POP}.genedesert.sites.thetas.idx \
+-win 25000 -step 25000 \
+-outnames $OUTDIR/${POP}.genedesert.sites.thetasWindow.gz
+
+#clean up
+rm $BAMOUTDIR/exclude/*.bam
+rm $BAMLISTDIR/${POP}.gd.bamlist
+rm $BAMLISTDIR/${POP}.genedesert.list
+```
+
+Then we used `R v.4.4.0` to further analyse the diversity data [@rcoreteam2024]. We compared category means using non-parametric Wilcoxon rank-sum tests and Holm-Bonferroni adjustment for multiple tests. Genes that were outside the 5th and 95th percentile were considered outliers and likely candidates for ongoing selection.
+
+## Local Adaptation - F~ST~
+
+```{r}
+#| label: calc-fst
+#| eval: false
+#| echo: false
+
+
+library(vcfR)
+library(hierfstat)
+library(dplyr)
+library(adegenet)
+
+### making nonSyn.snps dataframe ####
+deg_genes<- read.table("../beds/DEG_genes_geneIDs.bed")
+colnames(deg_genes)<- c("CHR","start","end","geneID")
+vcf_pos<- read.table("final152.frqfilt.DEG_CDS.ns.pos.txt")
+colnames(vcf_pos)<- c("CHR","position")
+nonSyn.snps<- list()
+for(g in deg_genes$geneID){
+  #extent<- deg_genes[which(deg_genes$geneID==g),]
+  extent<- deg_genes %>%
+          filter(geneID==g)
+  #positions<- vcf_pos[which(vcf_pos$CHR==extent$CHR),]
+  positions<- vcf_pos %>%
+              filter(CHR=extent$CHR & position>=extent$start & position<=extent$end)
+  #positions<- positions[which(positions$position>=extent$start & positions$position<= extent$end),]
+  if(nrow(positions)==0){
+  }else{
+  positions$geneID<- g
+  nonSyn.snps[[g]]<- positions
+  }
+}
+#nonSyn.snps<- do.call("rbind",nonSyn.snps)
+nonSyn.snps<- bind_rows(nonSyn.snps)
+nonSyn.snps$snpID<- paste(nonSyn.snps$CHR,nonSyn.snps$position, sep="_")
+nonSyn.snps$snpID<- gsub("-",".",nonSyn.snps$snpID)
+write.csv(nonSyn.snps,"final152.frqfilt.DEG_CDS.ns.geneIDs.csv", row.names=FALSE,quote=F)
+
+
+### making sampleINFO dataframe ####
+mass<- c("KLDR","BERG","BPNP","CCRO","CEBO","JENN","KBPP","MOSQ","PRDF","GRLL","ROME","SPVY","SSSP","WLRD")
+sampleInfo<- list()
+for(p in mass){
+samples<- readLines(paste0("../lists/final_172_",p,".txt"))
+sampleInfo[[p]]<- data.frame(SampleID=samples,Pop=p)
+}
+sampleInfo<- do.call("rbind",sampleInfo)
+
+### reading VCF data ####
+deg.vcf <- read.vcfR("final152.frqfilt.DEG_CDS.ns.vcf")
+
+#dim(deg.vcf)
+#variants fix_cols  gt_cols 
+#5073        8      153 
+sampleIds <- data.frame(SampleID=colnames(deg.vcf@gt)[-1]) %>% inner_join(sampleInfo)
+
+deg.genind <- vcfR2genind(deg.vcf)
+pop(deg.genind) <- sampleIds$Pop
+
+#### calculate Fstats ####
+
+deg.bstat<-basic.stats(deg.genind, diploid=TRUE, digits=3)
+
+deg.fst <- deg.bstat$perloc %>%
+  as.data.frame() %>%
+  filter(!is.na(Fst))
+
+##FOR STUPID REASONS TIDYVERSE CAN'T BE INSTALLED ON OSC right now... so cannot use below in one go
+#rownames_to_column(var = "snpID") %>%
+deg.fst$snpID<- rownames(deg.fst)
+deg.fst<- deg.fst %>%
+  left_join(nonSyn.snps, by="snpID") %>%
+  group_by(geneID) %>%
+  mutate(meanFst = mean(Fst)) %>%
+  as.data.frame()
+
+#write.csv(deg.fst,"deg.fst.csv",sep="/"),quote=F,row.names=F)
+```
+
+# Results & Discussion
+
+## Within-population tests.
+
+```{r heterozygosity noeval}
+#| label: heterozygosity reading
+#| message: false
+#| results: hide
+#| echo: false
+#| eval: false
+hwe.degen<- read_hwe.gz(path=datadir, pops=pop3)
+t<- hwe.degen[which(hwe.degen$geneID=="Scate00562" & hwe.degen$pop=="KLDR"),]
+hwe<- hwe.degen %>% 
+  group_by(pop,type,geneID,n_ind) %>% 
+  summarise(total_hom=sum(n_Homoz_minor, n_Homoz_major),
+            total_het=sum(Hobs_n),
+            total_genotypes=sum(n_Homoz_minor, n_Homoz_major, Hobs_n),
+            total_sites=n(), 
+            total_polymorphic=sum(polymorphic),
+            n_Homoz_minor=sum(n_Homoz_minor),
+            total_exp_het=sum(Hexp_n)) %>%
+  mutate(heterozygosity=total_het/total_genotypes,
+         minor_homoz=n_Homoz_minor/total_genotypes,
+         exp_heterozygosity=total_exp_het/total_genotypes,) 
+#checking to make sure there aren't any genes that are universally not polymorphic.
+actually_polymorphic<- hwe %>% 
+  group_by(geneID) %>%
+  summarise(n_polymorphic=sum(total_polymorphic),
+            pc_polymorphic=sum(total_polymorphic)/total_genotypes)
+
+#add gene categories
+hwe<- gene_categories(dat=hwe,geneID)
+hwe<- hwe %>% 
+  mutate(immune_DEG=ifelse(immune_DEG=="" | immune_DEG=="immune","random",as.character(immune_DEG))) %>%
+  mutate(immune_DEG=factor(immune_DEG,levels=c("DEG","lower DEG","upper DEG","immune DEG","lower immune DEG","upper immune DEG","random")))
+hwe<- plot_categories(hwe,pop3)
+
+hwe<- hwe %>%
+  mutate(pop_site=factor(pop_site, levels=c("STER ns","STER syn","KLDR ns","KLDR syn","CEBO ns","CEBO syn"))) 
+write.csv(hwe, paste0(datadir,"/FGD/degeneracy/heterozygosity_per_gene.csv"), row.names=FALSE, quote=FALSE)
+```
+
+```{r heterozygosity n s}
+#| label: heterozygosity-ns
+#| message: false
+#| results: hide
+#| echo: false
+
+hwe<- read.csv(paste0(datadir,"/FGD/degeneracy/heterozygosity_per_gene.csv"))
+hwe$immune_DEG<- ifelse(grepl("upper", hwe$immune_DEG),
+                        gsub("upper ","", hwe$immune_DEG),
+                        as.character(hwe$immune_DEG))
+hwe$immune_DEG<- ifelse(grepl("lower", hwe$immune_DEG),
+                        gsub("lower ","", hwe$immune_DEG),
+                        as.character(hwe$immune_DEG))
+het.summary<- hwe %>% 
+  group_by(pop,geneID,immune_DEG,n_ind) %>% 
+  reframe(n_het.ns=total_het[which(type=="non-synonymous")],
+            n_het.syn=total_het[which(type=="synonymous")],
+            heterozygosity.ns=round(heterozygosity[which(type=="non-synonymous")],5),
+          inbrF.ns=1-(round(heterozygosity[which(type=="non-synonymous")],5)/round(exp_heterozygosity[which(type=="non-synonymous")],5)),
+          
+            heterozygosity.syn=round(heterozygosity[which(type=="synonymous")],5),
+          inbrF.syn=1-(round(heterozygosity[which(type=="synonymous")],5)/round(exp_heterozygosity[which(type=="synonymous")],5)),
+            minor_homoz.ns=round(minor_homoz[which(type=="non-synonymous")],5),
+            minor_homoz.syn=round(minor_homoz[which(type=="synonymous")],5),
+            n_genotypes.ns=total_genotypes[which(type=="non-synonymous")],
+            n_genotypes.syn=total_genotypes[which(type=="synonymous")],
+            n_sites.ns=total_sites[which(type=="non-synonymous")],
+            n_sites.syn=total_sites[which(type=="synonymous")],
+            n_polymorphic.ns=total_polymorphic[which(type=="non-synonymous")],
+            n_polymorphic.syn=total_polymorphic[which(type=="synonymous")]) 
+
+hwe <- hwe %>%
+  mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO")),
+         pop_site=factor(pop_site,levels=c("STER ns", "STER syn",
+                                   "KLDR ns", "KLDR syn",
+                                   "CEBO ns", "CEBO syn"))) %>%
+  filter(immune_DEG!="random")
+
+
+k.test<- hwe %>% 
+  select(pop_site,immune_DEG, type2, heterozygosity) %>%
+  group_by(immune_DEG) %>%
+  wilcox_test(heterozygosity ~ pop_site) %>% 
+  adjust_pvalue(method="holm") %>%
+  add_significance() %>%
+  filter(word(group1,1,1)==word(group2,1,1))
+
+
+
+hetfig_up<- ggplot(hwe,aes(x=pop_site, y=heterozygosity, color=pop_site,group=pop_site)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  facet_wrap( ~ immune_DEG, scales="free",ncol=3) + 
+  labs(y="Per-Site Heterozygosity",x="") + 
+  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +  
+  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") +
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
+  theme(legend.position="top", legend.direction = "horizontal") +
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size,bracket.size = baselwd, y.position=c(0.082,0.101,0.1))
+  
+  
+  #stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, y.position=c(0.082,0.013,0.04,0.03), bracket.size = baselwd) + 
+
+hetfig_up
+```
+
+```{r}
+#| label: homozygosity-ns
+#| message: false
+#| results: hide
+#| echo: false
+#| eval: false
+homfig_up<- ggplot(hwe,aes(x=pop_site, y=minor_homoz, color=pop_site,group=pop_site)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  facet_wrap( ~ immune_DEG, scales="free",ncol=3) + 
+  labs(y="Homozygosity Minor Allele",x="") + 
+  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +  
+  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") +
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) 
+  #stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, labe.size=geom.text.size, y.position=c(0.082,0.013,0.04,0.03)) + 
+  #theme(legend.position="top", legend.direction = "horizontal")
+homfig_up
+```
+
+```{r tbl-genes}
+#| label: tbl-genes
+#| tbl-cap-location: top
+#| tbl-cap: "Number of genes investigated in each category in this report."
+#| echo: false
+#| tbl-colwidths: [75,25]
+#| fig-width: 8
+
+
+het_sum<- hwe %>% 
+  group_by(immune_DEG) %>% 
+  summarise(n_genes=length(unique(geneID)))
+
+knitr::kable(het_sum)
+
+```
+
+```{r nsvs-pi-configure noeval}
+#| label: nsvs-pi-configure
+#| echo: false
+#| results: hide
+#| message: false
+#| eval: false
+pi.dm<- read_pestPG(paste0(datadir,"/FGD/degeneracy/"),pop3)
+
+pi.dm<- pi.dm %>% 
+  mutate(immune_DEG=ifelse(immune_DEG=="" | immune_DEG=="immune","random",as.character(immune_DEG))) %>%
+  mutate(immune_DEG=factor(immune_DEG,levels=c("DEG","lower DEG","upper DEG","immune DEG","lower immune DEG","upper immune DEG","random"))) %>%
+  mutate(pop_site=factor(pop_site, levels=c("STER ns","STER syn","KLDR ns","KLDR syn","CEBO ns","CEBO syn"))) %>%
+  filter(immune_DEG!="random")
+
+write.table(pi.dm, paste0(datadir,"/FGD/degeneracy/pi_per_gene.csv"), row.names=FALSE, quote=FALSE, sep="\t")
+```
+
+```{r nsvs-pi}
+#| label: pi-ns
+#| echo: false
+#| results: hide
+#| message: false
+
+pi.dm<- read.table(paste0(datadir,"/FGD/degeneracy/pi_per_gene.csv"), header=TRUE, sep="\t")
+pi.dm$immune_DEG<- ifelse(grepl("upper", pi.dm$immune_DEG),
+                        gsub("upper ","", pi.dm$immune_DEG),
+                        as.character(pi.dm$immune_DEG))
+pi.dm$immune_DEG<- ifelse(grepl("lower", pi.dm$immune_DEG),
+                        gsub("lower ","", pi.dm$immune_DEG),
+                        as.character(pi.dm$immune_DEG))
+
+pi.dm <- pi.dm %>%
+    mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO")),
+         pop_site=factor(pop_site,levels=c("STER ns", "STER syn",
+                                   "KLDR ns", "KLDR syn",
+                                   "CEBO ns", "CEBO syn")))
+k.test<- pi.dm %>% 
+  select(pop_site,immune_DEG, type2, pi) %>%
+  group_by(immune_DEG) %>%
+  wilcox_test(pi ~ pop_site) %>% 
+  adjust_pvalue(method="holm") %>%
+  add_significance() %>%
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1))
+
+
+pifig_up<- ggplot(pi.dm ,aes(x=pop_site, y=pi, color=pop_site)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) +  
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  facet_wrap( ~ immune_DEG,scales="free",ncol=3) +
+  labs(y=expression(paste("Nucleotide Diversity (",pi,")", sep="")),x="") +
+  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +
+  theme(ggh4x.axis.nestline.x=element_blank(),legend.position = "top", legend.title=element_blank()) +
+  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd,y.position=rep(max(pi.dm$pi),6)) + theme(legend.position="top", legend.direction = "horizontal")
+pifig_up
+```
+
+```{r nsvs-tajd}
+#| label: tajimaD-ns
+#| echo: false
+k.test<- pi.dm %>% 
+  select(pop_site,immune_DEG, type2, Tajima) %>%
+  group_by(immune_DEG) %>%
+  wilcox_test(Tajima ~ pop_site) %>% 
+  adjust_pvalue(method="holm") %>%
+  add_significance() %>%
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1))
+
+
+tajfig_up<- ggplot(pi.dm ,aes(x=pop_site, y=Tajima, color=pop_site)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) +  
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  facet_wrap( ~ immune_DEG,scales="free",ncol=3) +
+  labs(y="Tajima's D",x="") +
+  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +
+  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd) + 
+  theme(legend.position="top", legend.direction = "horizontal", legend.title=element_blank())
+tajfig_up
+```
+
+```{r nsvs-fud-configure}
+#| label: nsvs-fud-configure
+#| echo: false
+#| eval: false
+k.test<- pi.dm %>% 
+  select(pop_site,immune_DEG, type2, fud) %>%
+  group_by(immune_DEG) %>%
+  wilcox_test(fud~ pop_site) %>% 
+  adjust_pvalue(method="holm") %>%
+  add_significance() %>%
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1))
+
+
+fudfig_up<- ggplot(pi.dm ,aes(x=pop_site, y=fud, color=pop_site)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) +  
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  facet_wrap( ~ immune_DEG,scales="free",ncol=3) +
+  labs(y="Fu and Li's D",x="") +
+  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +
+  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd) + 
+  theme(legend.position="top", legend.direction = "horizontal", legend.title=element_blank())
+```
+
+```{r nsvs-fuf-configure}
+#| label: nsvs-fuf-configure
+#| echo: false
+#| message: false
+#| eval: false
+k.test<- pi.dm %>% 
+  select(pop_site,immune_DEG, type2, fuf) %>%
+  group_by(immune_DEG) %>%
+  wilcox_test(fuf~ pop_site) %>% 
+  adjust_pvalue(method="holm") %>%
+  add_significance() %>%
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1))
+
+
+fuffig_up<- ggplot(pi.dm ,aes(x=pop_site, y=fuf, color=pop_site)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) +  
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  facet_wrap( ~ immune_DEG,scales="free",ncol=3) +
+  labs(y="Fu and Li's F",x="") +
+  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +
+  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd) + 
+  theme(legend.position="top", legend.direction = "horizontal", legend.title=element_blank())
+```
+
+```{r fig-nsvs, eval=FALSE}
+#| label: fig-nsvs
+#| echo: false
+#| eval: false
+#| fig.width: 12
+#| fig.height: 21
+#| fig.cap: "Comparison of synonymous and non-synonymous summary statistics with annotation of significant differences after p-value correction"
+
+ggarrange(hetfig_up, pifig_up, tajfig_up, common.legend=TRUE, ncol=1, nrow=3,labels=LETTERS[1:3])
+ggsave(filename=paste0(outdir,"/fig_nsvs.png"),plot = last_plot(),height=200, width=140, units="mm", device="png", bg="white")
+```
+
+### Gene deserts
+
+```{r gd-het-config}
+#| label: gd-het-config
+#| echo: false
+#| message: false
+#| results: hide
+
+#read in the 1000 overlapping GD sites. 
+gd.hwe<- read.csv(paste0(datadir,"/geneDesert/angsd_variants/all_KLDR_CEBO_STER_gd_hwe.csv"))
+gd.hwe<- gd.hwe %>% 
+  dplyr::rename(geneID=gene)
+
+#%>% filter(pop=="STER" | pop=="CEBO" | pop=="KLDR")
+
+confidences.het<- gd.hwe %>% 
+  group_by(pop) %>% 
+  summarise(lower95=quantile(heterozygosity,0.05), 
+            upper95=quantile(heterozygosity,0.95),
+            log_lower95=quantile(log10(heterozygosity),0.05),
+            log_upper95=quantile(log10(heterozygosity),0.95)) %>%
+  mutate(pop=factor(pop,pop3))
+
+
+levene_test(gd.hwe, heterozygosity ~ pop)
+#combining data
+
+relevant<- c("geneID","immune_DEG","pop","pop_site","heterozygosity","exp_heterozygosity")
+
+mega.hwe<- rbind(gd.hwe[,relevant],hwe[hwe$type=="non-synonymous",relevant])
+mega.hwe<- mega.hwe %>% 
+  mutate(gene2=ifelse(immune_DEG=="desert","",geneID),
+         type=ifelse(grepl("ns",pop_site),"ns","desert"),
+         pop_class=paste(pop,immune_DEG),
+         log10het=log10(heterozygosity)) %>%
+  mutate(type=ifelse(grepl("ns",pop_site),"ns","desert"),
+         pop=factor(pop, levels=pop3)) %>%  
+  mutate(pop_site=factor(pop_site, levels=c("STER desert",
+                                          "STER ns",
+                                          "KLDR desert",
+                                          "KLDR ns",
+                                          "CEBO desert",
+                                          "CEBO ns")),
+         pop_class=factor(pop_class, levels=c("STER desert",
+                                            "STER DEG",
+                                            "STER immune DEG",
+                                            "KLDR desert",
+                                            "KLDR DEG",
+                                            "KLDR immune DEG",
+                                            "CEBO desert",
+                                            "CEBO DEG",
+                                            "CEBO immune DEG")),
+        immune_DEG=factor(immune_DEG, levels=c("desert",
+                                            "DEG",
+                                            "immune DEG")))
+
+  
+  
+  
+#  mutate(pop_site=factor(pop_site, levels=c("STER desert",
+#                                            "STER ns",
+#                                            "KLDR desert",
+#                                            "KLDR ns",
+#                                            "CEBO desert",
+#                                            "CEBO ns")),
+#         pop_class=factor(pop_class, levels=c("STER desert",
+#                                              "STER random",
+#                                              "STER DEG",
+#                                              "STER immune DEG",
+#                                              "STER lower DEG",
+#                                              "STER lower immune DEG",
+#                                              "STER upper DEG", 
+#                                              "STER upper immune DEG",
+#                                                         "KLDR desert",
+#                                              "KLDR random",
+#                                              "KLDR DEG",
+#                                              "KLDR immune DEG",
+#                                              "KLDR lower DEG", 
+#                                              "KLDR lower immune DEG",  
+#                                              "KLDR upper DEG", 
+#                                              "KLDR upper immune DEG",
+#                                                         "CEBO desert",
+#                                              "CEBO random",
+#                                              "CEBO DEG",
+#                                              "CEBO immune DEG",
+#                                              "CEBO lower DEG", 
+#                                              "CEBO lower immune DEG", 
+#                                              "CEBO upper DEG", 
+#                                              "CEBO upper immune DEG")),
+#         immune_DEG=factor(immune_DEG, levels=c("desert",
+#                                                "random",
+#                                                "DEG",
+#                                                "immune DEG",
+#                                                "lower DEG",
+#                                                "lower immune DEG",
+#                                                "upper DEG",
+#                                                "upper immune DEG")))
+#  
+mega.hwe<- droplevels(mega.hwe)
+```
+
+```{r gd-pi-config}
+#| label: gd-pi-config
+#| echo: false
+#| message: false
+#| results: hide
+
+gd.out<- list()
+
+for(p in pop3){
+  print(p)
+  gd<- read.table(paste0(datadir,"/geneDesert/angsd_variants/",p,".genedesert.thetasWindow.gz.pestPG"))
+  
+  colnames(gd)<- picols[-15]
+  gd$pop<- p
+  #for some reason this wasn't working right in the piping
+  gd$winStart<- word(gd$`indexStart_indexStop-firstPosWithData_lastPosWithData-WinStart_WinStop`,3,3, sep="\\(")
+  gd$winStop<- word(gd$winStart,2,2, sep=",")
+  gd$winStart<- as.numeric(word(gd$winStart,1,1, sep=","))-1
+  gd$winStop<- gsub("\\)","",gd$winStop)
+  gd<- gd %>% 
+  mutate(geneID= paste0(Chr, ":",winStart,"-",winStop),
+         pi=tP/nSites,
+         watterson_theta=tW/nSites,
+         pop_site=paste(pop, "desert"),
+         immune_DEG="desert") %>%
+  mutate(log10pi=log10(pi)) %>%
+  mutate(log10pi=ifelse(pi==0,NA,log10pi))
+  #keep only the sites previously included.
+  gd<- gd[gd$geneID %in% gd.hwe$geneID,]
+  gd.out[[p]]<- gd
+}
+
+gd.pi<- do.call("rbind",gd.out)
+
+levene_test(gd.pi[which(gd.pi$pop!="CEBO"),], pi ~ pop)
+levene_test(gd.pi[which(gd.pi$pop!="CEBO"),], Tajima ~ pop)
+confidences.pi<- gd.pi %>% 
+  group_by(pop) %>% 
+  summarise(pi_lower95=quantile(pi,0.05, na.rm=TRUE),
+            pi_upper95=quantile(pi,0.95, na.rm=TRUE),
+            log10pi_upper95=quantile(log10pi,0.95, na.rm=TRUE),
+            log10pi_lower95=quantile(log10pi,0.05,na.rm=TRUE),
+            D_lower95=quantile(Tajima,0.05, na.rm=TRUE),
+            D_upper95=quantile(Tajima,0.95, na.rm=TRUE)) %>%
+  mutate(pop=factor(pop,pop3))
+
+#combining data
+
+relevant<- c("geneID","pi","log10pi","immune_DEG","pop","pop_site","Tajima")
+
+
+mega.pi<- rbind(gd.pi[,relevant],pi.dm[pi.dm$type=="non-synonymous",relevant])
+mega.pi<- mega.pi %>% 
+  mutate(gene2=ifelse(immune_DEG=="desert","",geneID),
+         type=ifelse(grepl("ns",pop_site),"ns","desert"),
+         pop_class=paste(pop,immune_DEG)) %>%
+  mutate(type=ifelse(grepl("ns",pop_site),"ns","desert"),
+         pop=factor(pop, levels=pop3)) %>%  
+  mutate(pop_site=factor(pop_site, levels=c("STER desert",
+                                            "STER ns",
+                                            "KLDR desert",
+                                            "KLDR ns",
+                                            "CEBO desert",
+                                            "CEBO ns")),
+         pop_class=factor(pop_class, levels=c("STER desert",
+                                              "STER DEG",
+                                              "STER immune DEG",
+                                              "KLDR desert",
+                                              "KLDR DEG",
+                                              "KLDR immune DEG",
+                                              "CEBO desert",
+                                              "CEBO DEG",
+                                              "CEBO immune DEG")),
+         immune_DEG=factor(immune_DEG, levels=c("desert",
+                                                "DEG",
+                                                "immune DEG")))
+  
+mega.pi<- droplevels(mega.pi)
+
+
+```
+
+```{r fig-gd-FuF}
+#| label: fig-gd-FuF
+#| echo: false
+#| message: false
+#| eval: false
+#| fig.cap: "Fu and Li's F in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
+k.test<- mega.pi %>% 
+  select(pop_class,pop, immune_DEG, type, fuf) %>%
+  group_by(pop) %>%
+  wilcox_test(fuf ~ pop_class) %>% 
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1)) %>%
+  filter(grepl("desert",group1)) %>%
+  adjust_pvalue(method="holm") %>%
+  add_significance() 
+
+#singletons vs avg number variants
+megafuf.all<- ggplot(mega.pi,aes(x=pop_class, y=fuf, color=pop, group=pop_class)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) +
+  facet_grid(~pop, scales="free") +
+  labs(x="",y="Fu and Li's F") + peri_figure +
+  theme(legend.title = element_blank(), 
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5),
+        legend.position="top", 
+        legend.direction = "horizontal")  + 
+  scale_y_continuous(breaks=c(-3,-2,-1,0,1,2,3,4,5)) +
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
+  geom_hline(dat=confidences.pi, aes(yintercept=fuF_upper95, colour=pop,), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
+  geom_hline(dat=confidences.pi, aes(yintercept=fuF_lower95, colour=pop), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd, y.position=k.test$y.position[which(k.test$p.adj.signif!="ns")]-0.5)
+
+megafuf.all
+```
+
+```{r fig-gd-FuD}
+#| label: fig-gd-FuD
+#| echo: false
+#| message: false
+#| eval: false
+#| fig.cap: "Fu and Li's D in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
+
+k.test<- mega.pi %>% 
+  select(pop_class,pop, immune_DEG, type, fud) %>%
+  group_by(pop) %>%
+  wilcox_test(fud ~ pop_class) %>% 
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1)) %>%
+  filter(grepl("desert",group1)) %>%
+  adjust_pvalue(method="holm") %>%
+  add_significance() 
+
+#singletons vs total number variants
+megafud.all<- ggplot(mega.pi,aes(x=pop_class, y=fud, color=pop, group=pop_class)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) +
+  facet_grid(~pop, scales="free") +
+  labs(x="",y="Fu and Li's D") + peri_figure +
+  theme(legend.title = element_blank(), 
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5),
+        legend.position="top", 
+        legend.direction = "horizontal")  + 
+  scale_y_continuous(breaks=c(-3,-2,-1,0,1,2,3,4,5)) +
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
+  geom_hline(dat=confidences.pi, aes(yintercept=fuD_upper95, colour=pop,), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
+  geom_hline(dat=confidences.pi, aes(yintercept=fuD_lower95, colour=pop), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd, y.position=k.test$y.position[which(k.test$p.adj.signif!="ns")]-0.2)
+
+megafud.all
+```
+
+```{r summarise pi}
+#| label: summarise
+#| echo: false
+pi.summary<- pi.dm %>% 
+  group_by(pop,geneID,immune_DEG) %>% 
+  reframe(pi.ns=round(pi[which(type=="non-synonymous")],5),
+            pi.syn=round(pi[which(type=="synonymous")],5),
+            watterson.ns=round(watterson_theta[which(type=="non-synonymous")],5),
+            watterson.syn=round(watterson_theta[which(type=="synonymous")],5),
+            tajima.ns=round(Tajima[which(type=="non-synonymous")],2), 
+            tajima.syn=round(Tajima[which(type=="synonymous")],2)) 
+#%>%
+ # mutate(pnps.pi=round(pi.ns/pi.syn,3))
+           #watterson.ns=round(watterson_theta[which(type=="non-synonymous")],5),
+           #watterson.syn=round(watterson_theta[which(type=="synonymous")],5),
+           #fuF.ns=round(fuf[which(type=="non-synonymous")],2),
+           #fuF.syn=round(fuf[which(type=="synonymous")],2),
+           #fuD.ns=round(fud[which(type=="non-synonymous")],2),
+           #fuD.syn=round(fud[which(type=="synonymous")],2))
+
+scate.summary<- merge(het.summary, pi.summary, by=c("pop","geneID","immune_DEG"), all.y=TRUE)
+#scate.summary$pNpS<- round(scate.summary$n_polymorphic.ns/scate.summary$n_polymorphic.syn,3)
+#p="STER"
+out<- list()
+for(p in pop3){
+  sub<- scate.summary[which(scate.summary$pop==p),]
+  ##heterozygosity
+  conf_sub<- confidences.het[which(confidences.het$pop==p),]
+  sub$het.ns.outlier<- ifelse(sub$heterozygosity.ns<conf_sub$lower95,-1,ifelse( sub$heterozygosity.ns>conf_sub$upper95,1,0))
+  sub$het.syn.outlier<- ifelse(sub$heterozygosity.syn<conf_sub$lower95 | sub$heterozygosity.syn>conf_sub$upper95,1,0)
+  
+  conf_sub<- confidences.pi[which(confidences.pi$pop==p),]
+  sub$pi.ns.outlier<- ifelse(sub$pi.ns<conf_sub$pi_lower95,-1,ifelse( sub$pi.ns>conf_sub$pi_upper95,1,0))
+  sub$pi.syn.outlier<- ifelse(sub$pi.syn<conf_sub$pi_lower95 | sub$pi.syn>conf_sub$pi_upper95,1,0)
+  
+  sub$tajima.ns.outlier<- ifelse(sub$tajima.ns<conf_sub$D_lower95,-1,ifelse(sub$tajima.ns>conf_sub$D_upper95,1,0)) 
+### noting if above or below the min/max cutoff.   
+
+  sub$tajima.syn.outlier<- ifelse(sub$tajima.syn<conf_sub$D_lower95 | sub$tajima.syn>conf_sub$D_upper95,1,0)
+  
+  #sub$fuF.ns.outlier<- ifelse(sub$fuF.ns<conf_sub$fuF_lower95 | sub$fuF.ns>conf_sub$fuF_upper95,1,0)
+  #sub$fuF.syn.outlier<- ifelse(sub$fuF.syn<conf_sub$fuF_lower95 | sub$fuF.syn>conf_sub$fuF_upper95,1,0)
+  
+  #sub$fuD.ns.outlier<- ifelse(sub$fuD.ns<conf_sub$fuD_lower95 | sub$fuD.ns>conf_sub$fuD_upper95,1,0)
+  #sub$fuD.syn.outlier<- ifelse(sub$fuD.syn<conf_sub$fuD_lower95 | sub$fuD.syn>conf_sub$fuD_upper95,1,0)
+
+  out[[p]]<- sub
+}
+
+scate.summary.out<- do.call("rbind",out)
+
+outlier.summary<- scate.summary.out %>% 
+  group_by(pop,immune_DEG) %>%
+  summarise(n_genes=length(unique(geneID)),
+            n_out_het.ns=sum(abs(het.ns.outlier)),
+            n_out_het.syn=sum(abs(het.syn.outlier)),
+            n_out_pi.ns=sum(abs(pi.ns.outlier)),
+            n_out_pi.syn=sum(pi.syn.outlier),
+            n_out_tajima.ns=sum(abs(tajima.ns.outlier)), 
+            n_out_tajima.syn=sum(tajima.syn.outlier),
+            #n_out_fuF.ns=sum(fuF.ns.outlier,na.rm=TRUE), 
+            #n_out_fuF.syn=sum(fuF.syn.outlier,na.rm=TRUE),
+            #n_out_fuD.ns=sum(fuD.ns.outlier, na.rm=TRUE),
+            #n_out_fuD.syn=sum(fuD.syn.outlier, na.rm=TRUE)
+            )
+
+scate.summary.out2<- scate.summary.out %>%
+  filter(immune_DEG!="random")
+  
+
+gene_annot<- read.xlsx(paste0(datadir,"/GO_annot/Scate_DEGs_annot.xlsx"),sheet=1)
+gene_annot<- gene_annot %>% 
+  filter(is.na(ortholog_exclude))
+gene_annot$Scate<- gsub("-RA","", gene_annot$Scate)
+gene_annot<- gene_annot[,c("Scate", "geneName_parsed","geneID")]
+colnames(gene_annot)[colnames(gene_annot)=="geneID"]<- "Cviridis_geneID"
+colnames(gene_annot)[colnames(gene_annot)=="Scate"]<- "geneID"
+scate.summary.out2<- merge(scate.summary.out2, gene_annot, by="geneID", all.x=TRUE)
+#scate.summary.out2$gene_pop<- paste0(scate.summary.out2$pop, scate.summary.out2$geneID)
+#note: the above creates a dataframe with more rows because there are sometimes multiple Cvi orthologs for a single gene. Using the file below as a guide, I am manually inspecting these annotations and removing the one that agrees least with the Scate gene annotation (or picking one at random if they are the same). I then exclude those sites on re-exporting the annotations above. 
+#scate.summary.out.dups<- scate.summary.out2[duplicated(scate.summary.out2$gene_pop),]
+
+scate.summary.out2<- scate.summary.out2 %>%
+  mutate(gene_pop=paste0(geneID,pop)) %>%
+  filter(!duplicated(gene_pop))
+write.csv(scate.summary.out2, file = paste0(outdir,"/report/result_pi_het.csv"), row.names=FALSE)
+write.csv(outlier.summary, file = paste0(outdir,"/report/result_outlier_summary.csv"), row.names=FALSE)
+
+```
+
+```{r}
+outlier.summary2<- scate.summary.out %>% 
+  group_by(pop,immune_DEG) %>%
+  summarise(n_genes=length(unique(geneID)),
+            tajima.ns_pos=sum(tajima.ns.outlier[tajima.ns.outlier==1]), 
+            tajima.ns_neg=abs(sum(tajima.ns.outlier[tajima.ns.outlier==-1])),
+            pi.ns_pos=sum(pi.ns.outlier[pi.ns.outlier==1]), 
+            pi.ns_neg=abs(sum(pi.ns.outlier[pi.ns.outlier==-1])),
+            het.ns_pos=sum(het.ns.outlier[het.ns.outlier==1]),
+            het.ns_neg=abs(sum(het.ns.outlier[het.ns.outlier==-1])))
+
+write.csv(outlier.summary2, file = paste0(outdir,"/report/result_outlier_summary_updown.csv"), row.names=FALSE)
+
+```
+
+```{r fig-summary}
+#| label: fig-summary
+#| fig.cap: "Number of interest genes that lie outside 95% of the gene desert statistics. Panels arranged by statistic (y) and gene category (x), where 'all DEGs' is the sum of the non-random categories on the left."
+#| echo: false
+#| message: false
+#| fig.height: 9
+#| fig.width: 11
+#outlier.summary.long<- melt(outlier.summary, id.vars=c("pop","immune_DEG","n_genes"),value.name = "number")
+outlier.summary.long<- melt(outlier.summary2, id.vars=c("pop","immune_DEG","n_genes"),value.name = "number")
+
+#outlier.summary.long<- outlier.summary.long %>%
+#  mutate(stat=word(variable,3,3, sep="_")) %>%
+#  mutate(stat=word(stat,1,1,sep="\\.")) %>%
+#  mutate(type=word(variable,2,2,sep="\\."),
+#         pc=(number/n_genes)*100) %>%
+#  select(!variable) 
+
+outlier.summary.long<- outlier.summary.long %>%
+  mutate(stat=word(variable,1,1, sep="\\.")) %>%
+  mutate(type=word(variable,2,2,sep="\\."),
+         pc=(number/n_genes)*100) %>%
+  select(!variable) %>%
+  filter(number>0)
+
+out.all<- outlier.summary.long %>% 
+  group_by(pop,stat,type) %>%
+  reframe(immune_DEG="all DEG",
+          n_genes=sum(n_genes),
+          number=sum(number)) %>%
+  mutate(pc=(number/n_genes)*100)
+
+outlier.summary.long<- rbind(outlier.summary.long, out.all)
+#outlier.summary.long<- outlier.summary.long %>%
+#  filter(stat=="pi" | stat=="tajima") %>%
+#  mutate(stat=factor(stat, levels=c("pi","tajima"))) %>% 
+#  mutate(immune_DEG=factor(immune_DEG, levels=c("all DEG", "random", "DEG","immune DEG","lower #DEG","lower immune DEG", "upper DEG", "upper immune DEG"))) %>%
+#  filter(type=="ns") %>%
+#  mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO")))
+         
+outlier.summary.long<- outlier.summary.long %>%
+  mutate(immune_DEG=factor(immune_DEG, levels=c("all DEG","DEG","immune DEG","lower DEG","lower immune DEG", "upper DEG", "upper immune DEG"))) %>%
+  mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO"))) %>%
+  mutate(pc=ifelse(grepl("neg",type),pc*-1,pc)) %>%
+  mutate(stat=factor(stat, levels=c("het","pi","tajima"))) %>%
+  mutate(pop_class=paste(pop, immune_DEG)) %>%
+  mutate(fig=paste0(number,"\n(",round(abs(pc),0),"%)"))
+
+
+#stat_names<- c("fuD"="Fu and Li's D",
+#                "fuF"="Fu and Li's F",
+#                "het"="heterozygosity",
+#                "pi"="\u03c0",
+#                "tajima"="Tajima's D")
+
+stat_names<- c("het"="Heterozygosity",
+               "pi"="\u03c0",
+               "tajima"="Tajima's D")
+a<- ggplot(outlier.summary.long[which(outlier.summary.long$stat!="het"),], aes(x=immune_DEG,y=pc, fill=pop)) + 
+  geom_bar(stat="identity", position=position_dodge(width=0.9)) + 
+  facet_grid( ~ stat, labeller=labeller(stat=stat_names)) + 
+  scale_fill_manual(values=viridispairs[c(3,6,12)],name="") +
+  peri_figure + scale_y_continuous(labels=function(x) paste0(x, "%")) + 
+  labs(y="Percent category genes outlying 95% of gene desert values", x="") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
+  geom_hline(yintercept = 0, lwd=baselwd, linetype="dashed")
+
+
+tajd_1<- list("STER"=scate.summary.out2$geneID[which(abs(scate.summary.out2$tajima.ns.outlier)==1 & scate.summary.out2$pop=="STER")],
+                "KLDR"=scate.summary.out2$geneID[which(abs(scate.summary.out2$tajima.ns.outlier)==1 & scate.summary.out2$pop=="KLDR")],
+              "CEBO"=scate.summary.out2$geneID[which(abs(scate.summary.out2$tajima.ns.outlier)==1 & scate.summary.out2$pop=="CEBO")])
+
+tajd_overall_fig<- ggvenn(tajd_1, 
+           set_name_size = 0, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           fill_color = viridispairs[c(3,6,12)], 
+           show_percentage = FALSE) + 
+  coord_cartesian(clip="off") + 
+  coord_equal() +
+  labs(title="Tajima's D outlier") 
+
+
+tajd_neg_outlier<- list("STER"=scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier==-1 & scate.summary.out2$pop=="STER")],
+                "KLDR"=scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier==-1 & scate.summary.out2$pop=="KLDR")],
+              "CEBO"=scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier==-1 & scate.summary.out2$pop=="CEBO")])
+
+tajd_neg_fig<- ggvenn(tajd_neg_outlier, 
+           set_name_size = 0, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           fill_color = viridispairs[c(3,6,12)], show_percentage = FALSE) + 
+  coord_cartesian(clip="off") + 
+  coord_equal() +
+  labs(title="Tajima's D < 0 outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, size=basesize))
+
+tajd_pos_outlier<- list("STER"=scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier==1 & scate.summary.out2$pop=="STER")],
+                "KLDR"=scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier==1 & scate.summary.out2$pop=="KLDR")],
+              "CEBO"=scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier==1 & scate.summary.out2$pop=="CEBO")])
+
+tajd_pos_fig<- ggvenn(tajd_pos_outlier, 
+           set_name_size = 0, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           fill_color = viridispairs[c(3,6,12)], show_percentage = FALSE) + 
+  coord_cartesian(clip="off") + 
+  coord_equal() +
+  labs(title="Tajima's D > 0 outliers") + 
+  theme(plot.title = element_text(hjust = 0.5, size=basesize))
+
+pi_venn_upper<- list("STER"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==1 & scate.summary.out2$pop=="STER")],
+                "KLDR"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==1 & scate.summary.out2$pop=="KLDR")],
+              "CEBO"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==1 & scate.summary.out2$pop=="CEBO")])
+
+
+pi_venn_upper_fig<- ggvenn(pi_venn_upper, 
+                           set_name_size = 0, 
+                           text_size=3, 
+                           stroke_size=0.3, 
+                           fill_color = viridispairs[c(3,6,12)], 
+                           show_percentage = FALSE) + 
+  coord_cartesian(clip="off") + 
+  coord_equal() +
+  labs(title=expression(paste("high ",pi," outliers"))) + 
+  theme(plot.title = element_text(hjust = 0.5, size=basesize))
+
+
+pi_venn_lower<- list("STER"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==-1 & scate.summary.out2$pop=="STER")],
+                "KLDR"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==-1 & scate.summary.out2$pop=="KLDR")],
+              "CEBO"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==-1 & scate.summary.out2$pop=="CEBO")])
+
+pi_venn_lower_fig<- ggvenn(pi_venn_lower, 
+                           set_name_size = 0, 
+                           text_size=3, 
+                           stroke_size=0.3, 
+                           fill_color = viridispairs[c(3,6,12)], 
+                           show_percentage = FALSE) + 
+  coord_cartesian(clip="off") + 
+  coord_equal() +
+  labs(title=expression(paste("low ",pi," outliers"))) + 
+  theme(plot.title = element_text(hjust = 0.5, size=basesize))
+
+
+
+
+
+ggarrange(a,ggarrange(pi_venn_upper_fig,pi_venn_lower_fig,tajd_pos_fig,tajd_neg_fig, ncol=4, labels=c("B","C","D","E"), nrow=1), nrow=2, heights=c(2.5,1),labels=c("A",""))
+```
+
+```{r fig-gd-het}
+#| label: fig-gd-het
+#| fig-cap: "Heterozygosity in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
+k.test<- mega.hwe %>% 
+  select(pop_class,pop, immune_DEG, type, heterozygosity) %>%
+  group_by(pop) %>%
+  wilcox_test(heterozygosity ~ pop_class) %>% 
+  adjust_pvalue(method="holm") %>%
+  add_significance() %>%
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1)) %>%
+  filter(grepl("desert",group1))
+
+megahet.all<- ggplot(mega.hwe,aes(x=pop_class, y=heterozygosity, color=pop, group=pop_class)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) +
+  facet_grid(~pop, scales="free") +
+  labs(x="",y="Per-site Heterozygosity")  + peri_figure +
+  theme(legend.title = element_blank(), 
+        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5),
+        legend.position="top", 
+        legend.direction = "horizontal")  + 
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
+  geom_hline(dat=confidences.het, aes(yintercept=upper95, colour=pop,), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
+  geom_hline(dat=confidences.het, aes(yintercept=lower95, colour=pop), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd)
+
+#, y.position=c(0.08,0.09,0.10,0.11,0.12,0.08,0.09,0.10,0.08,0.09,0.10)) 
+
+megahet.all<- ggplot(mega.hwe,aes(x=pop_class, 
+                        y=heterozygosity, 
+                        color=pop, 
+                        group=pop_class)) +
+  geom_boxplot(lwd=baselwd, 
+               show.legend = FALSE,
+               position=position_dodge(width=0.9),
+               outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), 
+             alpha=0.3) +
+  facet_grid(~pop, scales="free") +
+  labs(x="",
+       y="Per-site Observed Heterozygosity") + 
+  peri_figure +
+  theme(legend.title = element_blank(), 
+        axis.text.x = element_text(angle=90, 
+                                   hjust=1,
+                                   vjust=0.5),
+        legend.position="top", 
+        legend.direction = "horizontal")  + 
+  scale_color_manual(values=viridispairs[c(3,6,12)],
+                     name="") +
+  stat_summary(fun = "mean",
+               geom = "point", 
+               pch=4, 
+               stroke=0.5, 
+               size=3, 
+               position=position_dodge(width=0.9),
+               show.legend = FALSE) + 
+  geom_hline(dat=confidences.het, 
+             aes(yintercept=upper95,
+                 colour=pop,), 
+             show.legend = FALSE, 
+             linetype="dashed",
+             lwd=baselwd) + 
+  geom_hline(dat=confidences.het, 
+             aes(yintercept=lower95, 
+                 colour=pop), 
+             show.legend = FALSE, 
+             linetype="dashed",
+             lwd=baselwd) + 
+  stat_pvalue_manual(k.test, 
+                     label = "p.adj.signif", 
+                     tip.length = 0.005,
+                     hide.ns=TRUE, 
+                     label.size=geom.text.size, 
+                     bracket.size = baselwd,
+                     y.position=rep(c(0.11,0.12),3)) +
+  geom_text(data=outlier.summary.long[which(outlier.summary.long$stat=="het" & 
+                                              outlier.summary.long$type=="ns_neg" & 
+                                              outlier.summary.long$immune_DEG!="all DEG"),],
+            aes(x=pop_class,
+                y=-0.01,
+                label = fig),
+            size=geom.text.size,
+            show.legend=FALSE) + 
+   geom_text(data=outlier.summary.long[which(outlier.summary.long$stat=="het" & 
+                                               outlier.summary.long$type=="ns_pos" & 
+                                               outlier.summary.long$immune_DEG!="all DEG"),],
+            aes(x=pop_class,
+                y=0.132,
+                label = fig),
+            size=geom.text.size,
+            show.legend=FALSE) +
+  scale_x_discrete(labels=rep(c("desert","DEG", "immune DEG"),3))
+
+
+                    # y.position=rep(c(0.1,0.11,0.12),3)
+megahet.all
+
+ggsave(filename=paste0(outdir,"/fig_het.png"),plot = megahet.all,height=130, width=130, units="mm", device="png", bg="white")
+```
+
+```{r fig-gd-pi}
+#| label: fig-gd-pi
+#| echo: false
+#| message: false
+#| fig-cap: "Nucleotide diversity (π) in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
+k.test<- mega.pi %>% 
+  select(pop_class,pop, immune_DEG, type, log10pi) %>%
+  group_by(pop) %>%
+  wilcox_test(log10pi ~ pop_class) %>% 
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1)) %>%
+  filter(grepl("desert",group1)) %>%
+  adjust_pvalue(method="holm") %>%
+  add_significance() 
+
+
+megapi.all<- ggplot(mega.pi,
+                    aes(x=pop_class, 
+                        y=log10pi, 
+                        color=pop, 
+                        group=pop_class)) +
+  geom_boxplot(lwd=baselwd, 
+               show.legend = FALSE,
+               position=position_dodge(width=0.9),
+               outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), 
+             alpha=0.3) +
+  facet_grid(~pop, scales="free") +
+  labs(x="",
+       y=expression(paste("Nucleotide Diversity ",
+                          log[10],
+                          "(",pi,")",
+                          sep=""))) + 
+  peri_figure +
+  theme(legend.title = element_blank(), 
+        axis.text.x = element_text(angle=90, 
+                                   hjust=1,
+                                   vjust=0.5),
+        legend.position="none", 
+        legend.direction = "horizontal",
+        plot.margin = margin(t = 5,  # Top margin
+                                          r = 5,  # Right margin
+                                          b = 0,  # Bottom margin
+                                          l = 5, unit="mm"))  + 
+  scale_color_manual(values=viridispairs[c(3,6,12)],
+                     name="") +
+  stat_summary(fun = "mean",
+               geom = "point", 
+               pch=4, 
+               stroke=0.5, 
+               size=3, 
+               position=position_dodge(width=0.9),
+               show.legend = FALSE) + 
+  geom_hline(dat=confidences.pi, 
+             aes(yintercept=log10pi_upper95, colour=pop,), 
+             show.legend = FALSE, 
+             linetype="dashed",
+             lwd=baselwd) + 
+  geom_hline(dat=confidences.pi, 
+             aes(yintercept=log10pi_lower95, colour=pop), 
+             show.legend = FALSE, 
+             linetype="dashed",
+             lwd=baselwd) + 
+  scale_y_continuous(n.breaks=8) +
+  stat_pvalue_manual(k.test, 
+                     label = "p.adj.signif", 
+                     tip.length = 0.005,
+                     hide.ns=TRUE, 
+                     label.size=geom.text.size, 
+                     bracket.size = baselwd,
+                     y.position=rep(c(-1.25,-0.75),3)) +
+  geom_text(data=outlier.summary.long[which(outlier.summary.long$stat=="pi" & 
+                                              outlier.summary.long$type=="ns_neg" & 
+                                              outlier.summary.long$immune_DEG!="all DEG"),],
+            aes(x=pop_class,
+                y=-9.5,
+                label = fig),
+            size=geom.text.size,
+            show.legend=FALSE) + 
+   geom_text(data=outlier.summary.long[which(outlier.summary.long$stat=="pi" & 
+                                               outlier.summary.long$type=="ns_pos" & 
+                                               outlier.summary.long$immune_DEG!="all DEG"),],
+            aes(x=pop_class,
+                y=0,
+                label = fig),
+            size=geom.text.size,
+            show.legend=FALSE) +
+  scale_x_discrete(labels=rep(c("desert","DEG", "immune DEG"),3))
+
+
+    #y.position=rep(c(-1.25,-1,-0.75),3)
+megapi.all
+
+ggsave(filename=paste0(outdir,"/fig_pi.png"),plot = megapi.all,height=130, width=130, units="mm", device="png", bg="white")
+```
+
+```{r fig-gd-tajD}
+#| label: fig-gd-tajD
+#| echo: false
+#| message: false
+#| fig.cap: "Tajima's D in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
+k.test<- mega.pi %>% 
+  select(pop_class,pop, immune_DEG, type, Tajima) %>%
+  group_by(pop) %>%
+  wilcox_test(Tajima ~ pop_class) %>% 
+  add_y_position() %>%
+  filter(word(group1,1,1)==word(group2,1,1)) %>%
+  filter(grepl("desert",group1)) %>%
+  adjust_pvalue(method="holm") %>%
+  add_significance() 
+
+megataj.all<- ggplot(mega.pi,
+                     aes(x=pop_class, 
+                         y=Tajima, 
+                         color=pop, 
+                         group=pop_class)) +
+  geom_boxplot(lwd=baselwd, 
+               show.legend = FALSE,
+               position=position_dodge(width=0.9),
+               outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), 
+             alpha=0.3) +
+  facet_grid(~pop, scales="free") +
+  labs(x="",y="Tajima's D") + 
+  peri_figure +
+  theme(legend.title = element_blank(), 
+        axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5),
+        legend.position="none", 
+        legend.direction = "horizontal",
+        plot.margin = margin(t = 0,  # Top margin
+                                          r = 5,  # Right margin
+                                          b = 5,  # Bottom margin
+                                          l = 5, unit="mm"))  + 
+  scale_y_continuous(breaks=c(-3,-2,-1,0,1,2,3,4,5)) +
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
+  stat_summary(fun = "mean",
+               geom = "point", 
+               pch=4, 
+               stroke=0.5, 
+               size=3, 
+               position=position_dodge(width=0.9),
+               show.legend = FALSE) + 
+  geom_hline(dat=confidences.pi, 
+             aes(yintercept=D_upper95, colour=pop,), 
+             show.legend = FALSE, 
+             linetype="dashed",
+             lwd=baselwd) + 
+  geom_hline(dat=confidences.pi, 
+             aes(yintercept=D_lower95, colour=pop), 
+             show.legend = FALSE, 
+             linetype="dashed",
+             lwd=baselwd) + 
+  stat_pvalue_manual(k.test, 
+                     label = "p.adj.signif", 
+                     tip.length = 0.005,
+                     hide.ns=TRUE, 
+                     label.size=geom.text.size, 
+                     bracket.size = baselwd) + 
+  geom_text(data=outlier.summary.long[which(outlier.summary.long$stat=="tajima" & 
+                                               outlier.summary.long$type=="ns_neg" & 
+                                               outlier.summary.long$immune_DEG!="all DEG"),],
+            aes(x=pop_class,
+                y=-2.5,
+                label = fig),
+            size=geom.text.size,
+            show.legend=FALSE) + 
+   geom_text(data=outlier.summary.long[which(outlier.summary.long$stat=="tajima" & 
+                                               outlier.summary.long$type=="ns_pos" & 
+                                               outlier.summary.long$immune_DEG!="all DEG"),],
+            aes(x=pop_class,
+                y=4.5,
+                label = fig),
+            size=geom.text.size,
+            show.legend=FALSE) +
+  scale_x_discrete(labels=rep(c("desert","DEG", "immune DEG"),3))
+
+
+#y.position=c(2.6,2.8,3,
+#                                 3.6,3.8,4.0,
+#                                 3,3.2,3.4)    
+megataj.all
+
+ggsave(filename=paste0(outdir,"/fig_taj.png"),plot = megataj.all,height=130, width=130, units="mm", device="png", bg="white")
+
+                     
+                     
+                
+```
+
+```{r fig-tajD-names}
+#| label: fig-tajD-names
+#| eval: false
+#| fig.cap: "synonymous vs non-synonymous Tajima's D. Extreme values are annotated (GLYATL3, MRM3), as well as outlier immune genes"
+
+d<- ggplot(scate.summary.out2, aes(x=tajima.syn,y=tajima.ns, colour=pop, alpha=n_polymorphic.ns, shape=as.factor(tajima.ns.outlier))) +
+  geom_point() + 
+   peri_figure +
+  labs(x="Synonymous Sites Tajima's D",y="Non-Synonymous Sites Tajima's D ") +
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="population") + 
+  scale_alpha_continuous(name="No. polymorphic NS") +
+  scale_shape_discrete(name="NS Tajima's D outlier") + 
+  geom_text_repel(aes(label=interesting), alpha=0.9, show.legend = FALSE, size=geom.text.size, max.overlaps = 24) +
+  scale_x_continuous(breaks=seq(-2,4,1)) + 
+  scale_y_continuous(breaks=seq(-2,4,1)) + coord_equal()
+
+d
+```
+
+```{r degs}
+#| echo: false
+liverTreat<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Liver/genelist/Liver_DGE_TreatOnly_withAnn.csv")
+liverTreat$GeneID<- trimws(liverTreat$GeneID) #making sure mismatches don't occure due to random white-space at ends
+liverTreat$Treatment<- "liverTreat"
+
+liverInter<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Liver/genelist/Liver_DGE_Inter_withAnn.csv")
+liverInter$GeneID<- trimws(liverInter$GeneID)
+liverInter$Treatment<- "liverInter"
+
+kidneyInter<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Kidney/genelist/Kidney_DGE_Inter_withAnn.csv")
+kidneyInter$GeneID<- trimws(kidneyInter$GeneID)
+kidneyInter$Treatment<- "kidneyInter"
+
+kidneyTreat<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Kidney/genelist/Kidney_DGE_TreatOnly_withAnn.csv")
+kidneyTreat$GeneID<- trimws(kidneyTreat$GeneID)
+kidneyTreat$Treatment<- "kidneyTreat"
+skinTreat<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Skin/genelist/Skin_DGE_TreatOnly_withAnn.csv")
+skinTreat$GeneID<- trimws(skinTreat$GeneID)
+skinTreat$Treatment<- "skinTreat"
+
+#create a list of unique gene IDs for possible disease genes
+total<- rbind(liverTreat, liverInter, kidneyTreat, kidneyInter, skinTreat)
+total<- total %>%
+  dplyr::rename(Cviridis_geneID=GeneID) %>%
+  select(Cviridis_geneID,Treatment,log2FoldChange,padj) %>%
+  right_join(scate.summary.out2,by="Cviridis_geneID") %>%
+  mutate(gene_pop=paste0(geneID,pop)) %>%
+  filter(!duplicated(gene_pop)) %>%
+  filter(tajima.ns.outlier!=0) %>%
+  mutate(reg=ifelse(log2FoldChange>0,"Up","Down"))
+
+
+ggplot(total,aes(x=log2FoldChange, y=tajima.ns, colour=pop, shape=as.factor(tajima.ns.outlier))) +
+  geom_point() + facet_wrap(~Treatment)
+
+total2<- total %>% 
+  group_by(pop,reg) %>%
+  summarise(tajima.pos=sum(tajima.ns.outlier[tajima.ns.outlier==1]), 
+            tajima.neg=sum(abs(tajima.ns.outlier[tajima.ns.outlier==-1]))) %>%
+  gather(key="tajima_direction",value="number_genes",-pop,-reg) %>%
+  mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO")),
+         tajima_direction=factor(tajima_direction,levels=c("tajima.neg","tajima.pos")))
+
+
+degs1<- ggplot(total2,aes(x=reg,y=number_genes, fill=tajima_direction)) + 
+  geom_bar(stat="identity", position=dodge) + 
+  facet_wrap(~pop) +
+  peri_figure +
+  scale_y_continuous(expand=c(0,0), limits=c(0,max(total2$number_genes)+17), breaks=seq(0,max(total2$number_genes)+17,by=20)) + 
+  labs(x="Expression Direction",
+       y="Number Tajima's D\noutlier genes",
+       fill="Tajima's D") + 
+  scale_fill_manual(labels=c("< 0","> 0"), values=c("deepskyblue3","red3")) + 
+  geom_text(data=total2,aes(x=reg,y=number_genes+4, colour=tajima_direction, label=number_genes), position=dodge, show.legend = FALSE, size=geom.text.size) +
+   scale_colour_manual(values=c("deepskyblue3","red3"))
+
+degs_ster<- total %>%
+  filter(tajima.ns.outlier!=0,pop=="STER")
+degs_kldr<- total %>%
+  filter(tajima.ns.outlier!=0, pop=="KLDR") %>%
+  filter(geneID %in% degs_ster$geneID)
+degs_ster <- degs_ster %>%
+  filter(geneID %in% degs_kldr$geneID)
+degs_sis<- rbind(degs_ster,degs_kldr)
+degs_sis<- degs_sis %>% 
+  group_by(pop,reg) %>%
+  summarise(tajima.pos=sum(tajima.ns.outlier[tajima.ns.outlier==1]), 
+            tajima.neg=sum(abs(tajima.ns.outlier[tajima.ns.outlier==-1]))) %>%
+  gather(key="tajima_direction",value="number_genes",-pop,-reg) %>%
+  mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO")),
+         tajima_direction=factor(tajima_direction,levels=c("tajima.neg","tajima.pos")))
+
+
+
+degs2<- ggplot(degs_sis,aes(x=reg,y=number_genes, fill=tajima_direction)) + 
+  geom_bar(stat="identity", position=dodge) + 
+  facet_wrap(~pop) +
+  peri_figure +
+  scale_y_continuous(expand=c(0,0), limits=c(0,max(degs_sis$number_genes)+4), breaks=seq(0,max(degs_sis$number_genes)+7,by=5)) + 
+  labs(x="Expression Direction",
+       y="Number Tajima's D\noutlier genes",
+       fill="Tajima's D") + 
+  scale_fill_manual(labels=c("< 0","> 0"),  values=c("deepskyblue3","red3")) + 
+  geom_text(data=degs_sis,aes(x=reg,y=number_genes+1, colour=tajima_direction, label=number_genes), position=dodge, show.legend = FALSE, size=geom.text.size) + 
+  scale_colour_manual(values=c("deepskyblue3","red3"))
+
+degs_plot<- ggarrange(degs1,degs2,labels=c("A","B"), nrow=2)
+ggsave(filename=paste0(outdir,"/fig_deg_direction.png"),plot = degs_plot,height=150, width=150, units="mm", device="png", bg="white")
+
+
+total3<- total %>% 
+  group_by(pop,reg,Treatment) %>%
+  summarise(tajima.pos=sum(tajima.ns.outlier[tajima.ns.outlier==1]), 
+            tajima.neg=sum(abs(tajima.ns.outlier[tajima.ns.outlier==-1]))) %>%
+  gather(key="tajima_direction",value="number_genes",-pop,-reg,-Treatment) %>%
+  mutate(pop=factor(pop, levels=c("STER","KLDR","CEBO")),
+         tajima_direction=factor(tajima_direction,levels=c("tajima.neg","tajima.pos")))
+
+ggplot(total3,aes(x=reg,y=number_genes, fill=tajima_direction)) + 
+  geom_bar(stat="identity", position=position_dodge(width=0.9)) + 
+  facet_wrap(Treatment~pop, ncol=3, scales="free_y") +
+  peri_figure +
+  scale_y_continuous(breaks = ~round(unique(pretty(.)))) + 
+  labs(x="Expression Direction",
+       y="Number Tajima's D\noutlier genes",
+       fill="Tajima's D") + 
+  scale_fill_manual(labels=c("< 0","> 0"), values=c("deepskyblue3","red3"))
+
+```
+
+```{r fig-pNpS, eval=FALSE}
+#| label: fig-pNpS
+#| fig.cap: "A) number of polymorphic non-synonymous sites/number polymorphic synonymous sites B) Pn/Ps is not related to Tajima's D C) Genes with positive DoS (+1) do not appear to show strong signals of positive selection with Tajima's D D) Relationship between DoS and Pn/Ps"
+#| echo: false
+#| warning: false
+#| eval: false
+a<- ggplot(scate.summary[which(!is.na(scate.summary$pNpS) & !is.infinite(scate.summary$pNpS)),], aes(x=immune_DEG,y=pNpS, colour=pop)) +
+  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+  geom_hline(yintercept=1, lwd=baselwd+0.3, colour="salmon", linetype="dashed") +
+  peri_figure +
+  labs(x="",y=expression(over(p[N],p[S]))) +
+  theme(axis.title.y = element_text(angle=0, hjust=1,vjust=0.5),
+        legend.title = element_blank())+
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
+  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
+  scale_y_continuous(breaks=seq(0,15,1))
+
+
+#b<- ggplot(scate.summary[which(!is.na(scate.summary$pnps.pi) & !is.infinite(scate.summary$pnps.pi)),], aes(x=immune_DEG,y=pnps.pi, colour=pop)) +
+#  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
+#  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
+#  geom_hline(yintercept=1, lwd=baselwd+0.3, colour="salmon", linetype="dashed") +
+#  peri_figure +
+#  labs(x="",y=expression(over(pi[N],pi[S]))) +
+#  theme(axis.title.y = element_text(angle=0, hjust=1,vjust=0.5),
+#        legend.title = element_blank())+
+#  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
+#  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE)  + 
+#  scale_y_continuous(breaks=seq(0,18,2))
+
+b<- ggplot(scate.summary.out[which(!is.na(scate.summary.out$pNpS) & !is.infinite(scate.summary.out$pNpS)),], aes(x=tajima.ns,y=pNpS, colour=pop, shape=as.factor(tajima.ns.outlier))) +
+  geom_point(alpha=0.5) + 
+   peri_figure +
+  labs(x="Non-synonymous Tajima's D",y=expression(over(p[N],p[S]))) +
+  theme(axis.title.y = element_text(angle=0, hjust=1,vjust=0.5),
+        legend.title = element_blank())+
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="")
+
+
+dos<- read.csv(paste0(datadir,"/Mathur_2023_PNAS/DoS.KLDRig.csv"))
+dos<- dos %>%
+  right_join(scate.summary.out, by="geneID")
+
+c<-ggplot(dos, aes(x=dos1,y=tajima.ns,colour = pop,shape=as.factor(tajima.ns.outlier))) + 
+  geom_point(alpha=0.5) + peri_figure +
+  labs(x="Direction of Selection (DoS)",y="Non-synonymous Tajima's D") + 
+  theme(legend.title = element_blank()) + 
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="")
+
+d<- ggplot(dos[which(!is.na(dos$pNpS) & !is.infinite(dos$pNpS)),], aes(x=dos1,y=pNpS,colour = pop,shape=as.factor(tajima.ns.outlier))) + 
+  geom_point(alpha=0.5) + peri_figure + 
+  labs(x="Direction of Selection (DoS)",y=expression(over(p[N],p[S]))) + 
+  theme(legend.title = element_blank(),
+        axis.title.y = element_text(angle=0, hjust=1,vjust=0.5)) + 
+  scale_color_manual(values=viridispairs[c(3,6,12)],name="")
+
+ggarrange(a,ggarrange(b,c,d, common.legend = TRUE, labels=c("B","C","D"), ncol=3), labels=c("A",""), nrow=2)
+```
+
+```{r fig-within-GO-STER, eval=FALSE}
+#| label: fig-within-GO-STER
+#| fig.cap: "Top GO terms for genes that have outlying non-synonymous Tajmia's D statistic."
+#| warning: false
+#read in the conversion between the parsed genenames and the ensembl IDs. I filled in missing ones based on manual search (Many of these were due to non-systematic errors in the gene name used for the original search)
+conv.ac<- read.csv(paste0(datadir,"/lists/gProfiler_acarolinensis_04-08-2024_10-42-48.csv"))
+colnames(conv.ac)[colnames(conv.ac)=="initial_alias"]<- "geneName_parsed"
+conv.ac2<- merge(scate.summary.out2, conv.ac, by="geneName_parsed")
+
+### STER
+ster.go<- conv.ac2 %>%
+  filter(pop=="STER" & converted_alias_manual_additions!="") %>%
+  mutate(gene_pop=paste0(geneID,pop)) %>%
+  filter(!duplicated(gene_pop) & tajima.ns.outlier==1)
+go_res<- gost(ster.go$converted_alias_manual_additions, organism="acarolinensis", significant=TRUE, evcodes=TRUE)
+go_res<- go_res$result
+go_res<- go_res[order(go_res$p_value),]
+go_res$pop<- "STER"
+go_res$parents<- as.character(go_res$parents)
+write.table(go_res, paste0(outdir,"/GO_STER_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+### KLDR GO
+kldr.go<- conv.ac2 %>%
+  filter(pop=="KLDR" & converted_alias_manual_additions!="") %>%
+  mutate(gene_pop=paste0(geneID,pop)) %>%
+  filter(!duplicated(gene_pop) & tajima.ns.outlier==1)
+go_res<- gost(kldr.go$converted_alias_manual_additions, organism="acarolinensis", significant=TRUE, evcodes=TRUE)
+go_res<- go_res$result
+go_res<- go_res[order(go_res$p_value),]
+go_res$pop<- "KLDR"
+go_res$parents<- as.character(go_res$parents)
+write.table(go_res, paste0(outdir,"/GO_KLDR_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+### CEBO GO
+cebo.go<- conv.ac2 %>%
+  filter(pop=="CEBO" & converted_alias_manual_additions!="") %>%
+  mutate(gene_pop=paste0(geneID,pop)) %>%
+  filter(!duplicated(gene_pop) & tajima.ns.outlier==1)
+go_res<- gost(cebo.go$converted_alias_manual_additions, organism="acarolinensis", significant=FALSE, evcodes=TRUE)
+go_res<- go_res$result
+go_res<- go_res[order(go_res$p_value),]
+go_res$pop<- "CEBO"
+go_res$parents<- as.character(go_res$parents)
+go_res<- go_res[1:10,]
+write.table(go_res, paste0(outdir,"/GO_CEBO_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+rownames(go_res)<-1:nrow(go_res)
+
+#weirdo<- go_res[go_res$intersection=="ENSACAG00000013078",] #just making sure we're getting all the genes.
+
+#go_res<- rbind(go_res,weirdo)
+go_out<- list()
+for(i in 1:nrow(go_res)){
+  sub<- go_res[i,]
+  if(grepl(",",sub$intersection)){
+    #i=1
+    ensg<- str_split_1(sub$intersection,"\\,")
+    sub2<- data.frame(p_value=rep(sub$p_value,length(ensg)),
+                    source=rep(sub$source, length(ensg)),
+                    term_name=rep(sub$term_name, length(ensg)),
+                    converted_alias_manual_additions=ensg)
+    go_out[[i]]<- sub2
+  }else{
+    sub$converted_alias_manual_additions<- sub$intersection
+
+    go_out[[i]]<- sub[,c("p_value","source","term_name","converted_alias_manual_additions")]
+  }
+}
+go_res2<- do.call("rbind",go_out)
+go_res2$term<- paste(go_res2$source,go_res2$term_name)
+
+go_res2<- merge(go_res2,conv.ac2, by="converted_alias_manual_additions")
+
+go_res2$gene<- paste(go_res2$geneID, go_res2$geneName_parsed)
+
+ggplot(go_res[1:10], aes(x=,y=term,fill=p_value)) + 
+  geom_tile() + peri_tile + coord_equal() +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
+  labs(x="",y="")
+
+imm<- scate.summary.out2[grepl("immune",scate.summary.out2$immune_DEG),]
+```
+
+```{r, eval=FALSE}
+go_res<- list()
+
+for(p in pop3){
+  go<-read.table(paste0(outdir,"/GO_",p,"_Tajima.tsv"), sep="\t", header=TRUE)
+  go_res[[p]]<- go[which(!grepl("KEGG",go$term_id)),]
+}
+go_res<- do.call("rbind",go_res)
+
+go_freq<- go_res %>%
+  group_by(term_id) %>%
+  summarise(Freq=n())
+simMatrix <- calculateSimMatrix(go_freq$term_id,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_freq$Freq, go_freq$term_id)
+reducedTerms <- reduceSimMatrix(simMatrix,
+                               scores,
+                                threshold=0.7,
+                                orgdb="org.Hs.eg.db")
+
+colnames(reducedTerms)[colnames(reducedTerms)=="go"]<- "term_id"
+
+go<- go_res %>%
+  left_join(reducedTerms, by="term_id")
+edox2 <- enrichplot::pairwise_termsim(go)
+ggplot(go_res, aes(x=pop,y=term_name, fill = intersection_size)) + geom_tile(colour="grey50") + scale_fill_viridis(option="A", na.value="white", direction=-1, name="Number genes") + peri_tile
+``` 
+
+### GO
+
+```{r gene annot}
+#reading the DEGs and their annotations in again so that I don't need to read all of the above code to arrive at this point.
+scate.summary.out2<- read.csv(paste0(outdir,"/report/result_pi_het.csv"))
+degs2anolis<- read.xlsx(paste0(datadir,"/GO_annot/Scate_DEGs_annot.xlsx"))
+degs2anolis<- degs2anolis %>%
+  mutate(Scate=gsub("-RA","",Scate),
+         Anolis_GeneID_GCF.GAF=as.character(Anolis_GeneID_GCF.GAF),
+         gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(Scate,geneName_parsed,Anolis_GeneID_GCF.GAF,Anolis_entrez,gene_composite)
+
+#the GO database linking GO IDs to terms
+obo<- read.csv(paste0(datadir,"/GO_annot/go_ontology_obo_out.csv"))
+obo <- obo %>% dplyr::rename(GO_ID=id)
+
+#this links Anolis genes to gene ontology IDs
+gaf<- read.table(paste0(datadir,"/GO_annot/GCF_035594765.1-RS_2024_02_gene_ontology.gaf"), comment.char="!",header=TRUE, sep="\t", quote="\"")
+gaf<- gaf %>%
+  left_join(obo, by="GO_ID") %>%
+  filter(namespace=="biological_process") %>%
+  mutate(Anolis_GeneID_GCF.GAF=as.character(GeneID)) %>%
+  full_join(degs2anolis[,c("Scate","Anolis_GeneID_GCF.GAF")],by="Anolis_GeneID_GCF.GAF") %>%
+  mutate(gene_GO=ifelse(!is.na(Scate),
+                        paste0(Scate,GeneID,GO_ID),
+                        paste0("",GeneID,GO_ID))) %>%
+  filter(!duplicated(gene_GO)) %>%
+  select(Scate,GeneID,GO_ID,name,gene_GO) 
+
+
+
+#go2gene_bp<- gaf %>%
+#  filter(namespace=="biological_process") %>%
+#  select(GO_ID,GeneID)
+go2name_bp<- obo %>%
+  filter(namespace=="biological_process") %>%
+  select(GO_ID,name)
+
+#reading in the candidate immune genes 
+immune_terms<- read.table(paste0(datadir,"/candidate genes/v2/Cvi_immune_annot.txt"), header=TRUE, sep="\t", quote="\"") 
+
+immune_terms <- immune_terms %>%
+  mutate(Scate=gsub("-RA","",Scate)) %>%
+  filter(Scate!="") %>%
+  filter(Anolis_entrez!="100559978")
+### TLR5 is a scate annotation.
+tlr5<- read.csv(paste0(datadir,"/candidate genes/v2/sca_TLR5.csv"))
+immune_terms<- rbind(immune_terms,tlr5)
+
+immune_GO<- immune_terms %>%
+  filter(GO_ID!="") %>%
+  select(Scate,Anolis_entrez,Anolis_Genename,Anolis_entrezName,GO_ID) %>%
+  inner_join(go2name_bp, by="GO_ID") %>% #add in GO name info, only the biological process terms that exist in the OBO
+  mutate(gene_GO=paste0(Scate,GO_ID)) %>%
+  filter(!duplicated(gene_GO)) %>%
+  full_join(degs2anolis, by="Scate")%>% #add the gene name conversion information including non-immune genes. 
+  mutate(gene_GO=paste0(Scate,GO_ID))  %>%
+  filter(!duplicated(gene_GO)) 
+
+
+  
+
+go2gene_bp<- immune_GO %>%
+  dplyr::rename(GeneID=Anolis_GeneID_GCF.GAF) %>%
+  select(Scate,GeneID,GO_ID,name) %>%
+  mutate(gene_GO=paste0(Scate,GeneID,GO_ID)) %>%
+  mutate(gene_GO=gsub("^NA","",gene_GO)) %>%
+  full_join(gaf,by="gene_GO") %>%
+  mutate(Scate=ifelse(is.na(Scate.x),Scate.y,Scate.x),
+         GeneID=ifelse(is.na(GeneID.x),GeneID.y,GeneID.x),
+         GO_ID=ifelse(is.na(GO_ID.x),GO_ID.y,GO_ID.x)) %>%
+  mutate(GeneID=replace_na(GeneID,""),
+         Scate=replace_na(Scate,"")) %>%
+  mutate(gene_composite=paste0(GeneID,Scate)) %>%
+  select(GO_ID,gene_composite)
+
+
+
+
+  
+immune_KEGG<- immune_terms %>%
+  filter(!is.na(Anolis_pathway_ID) | !is.na(Python_pathway_ID) | !is.na(Thamnophis_pathway_ID)) %>%
+  select(!GO_ID) %>% 
+  mutate(No_Anolis=ifelse(
+    is.na(Anolis_pathway_ID),TRUE,FALSE),
+    Pathway_combined=ifelse(
+    !is.na(Anolis_pathway_name),
+    as.character(Anolis_pathway_name),
+    ifelse(!is.na(Thamnophis_pathway_name),
+           as.character(Thamnophis_pathway_name),
+           as.character(Python_pathway_name)
+    ))) 
+```
+ 
+#### Tajima's D GO
+```{r Tajima STER}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+#foreground<- as.character(degs2anolis$Anolis_GeneID_GCF.GAF[which(degs2anolis$Scate %in% foreground$geneID)])
+#foreground<- foreground[!is.na(foreground)]
+
+
+MHC_ster<- scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_ster<- go_results@result
+write.table(go_results_ster, paste0(outdir,"/GO_STER_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_ster$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_ster$pvalue, go_results_ster$ID)
+reducedTerms_ster <- reduceSimMatrix(simMatrix,
+                               scores=scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_ster <- reducedTerms_ster %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_ster,by="ID")
+write.table(reducedTerms_ster, paste0(outdir,"/GO_STER_Tajima_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r Tajima KLDR}
+## KLDR ###
+#foreground<-  scate.summary.out2 %>%
+#  filter(pop=="KLDR") %>%
+#  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1)
+#foreground<- as.character(degs2anolis$Anolis_GeneID_GCF.GAF[#which(degs2anolis$Scate %in% foreground$geneID)])
+#foreground<- foreground[!is.na(foreground)]
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+MHC_kldr<- scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_kldr<- go_results@result
+write.table(go_results_kldr, paste0(outdir,"/GO_KLDR_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_kldr$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_kldr$pvalue, go_results_kldr$ID)
+reducedTerms_kldr <- reduceSimMatrix(simMatrix,
+                               scores=scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_kldr <- reducedTerms_kldr %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_kldr,by="ID")
+write.table(reducedTerms_kldr, paste0(outdir,"/GO_kldr_Tajima_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r Tajima CEBO}
+### CEBO
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+MHC_cebo<- scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(tajima.ns.outlier==1 | tajima.ns.outlier==-1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_cebo<- go_results@result
+write.table(go_results_cebo, paste0(outdir,"/GO_CEBO_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_cebo$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_cebo$pvalue, go_results_cebo$ID)
+reducedTerms_cebo <- reduceSimMatrix(simMatrix,
+                               scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_cebo <- reducedTerms_cebo %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_cebo,by="ID")
+write.table(reducedTerms_cebo, paste0(outdir,"/GO_CEBO_Tajima_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r summarize Tajima GO}
+### sumarise
+go_cebo<- read.table(paste0(outdir,"/GO_CEBO_Tajima.tsv"), sep="\t", header=TRUE)
+go_kldr<- read.table(paste0(outdir,"/GO_KLDR_Tajima.tsv"),sep="\t", header=TRUE)
+go_ster<- read.table(paste0(outdir,"/GO_STER_Tajima.tsv"),sep="\t", header=TRUE)
+go_cebo$pop<- "CEBO"
+go_kldr$pop<- "KLDR"
+go_ster$pop<- "STER"
+go_results<- rbind(go_cebo,go_kldr,go_ster)
+go_results<- go_results %>%
+  filter(p.adjust<0.05 & Count>1) %>%
+  mutate(immune=ifelse(ID %in% immune_GO$GO_ID,
+                       "immune",
+                       "non-immune"),
+        Description=ifelse(grepl("MHC",Description),
+                           "antigen processing and presentation\nof peptide antigen via MHC class I",as.character(Description))) %>%
+  mutate(Description=ifelse(
+    grepl("calcium-dependent cell-cell",Description),
+    "calcium-dependent cell-cell adhesion via\nplasma membrane cell adhesion molecules",
+    Description)) %>%
+  mutate(Description=ifelse(
+    grepl("homophilic",Description),
+    "homophilic cell adhesion via\nplasma membrane adhesion molecules",
+    Description)) %>%
+  mutate(Description=ifelse(
+    grepl("transmembrane receptor",Description),
+    "transmembrane receptor protein\ntyrosine kinase signaling pathway",
+    Description))
+  
+
+ggplot(go_results, aes(x=Description, y=pop, colour=pvalue, size=Count)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5),
+        legend.justification="top",
+        panel.spacing = unit(0.1, "lines")) +
+  scale_colour_viridis(option="inferno") +
+  facet_grid(~immune, scales="free")
+
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=260,height=110, units="mm") 
+
+
+
+simMatrix <- calculateSimMatrix(go_results$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results$pvalue, go_results$ID)
+reducedTerms<- reduceSimMatrix(simMatrix,
+                               "uniqueness",
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms <- reducedTerms %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results,by="ID")
+
+reducedTerms2<- reducedTerms %>%
+  group_by(pop,parentTerm) %>%
+  summarise(n_genes=sum(Count),mean_p=mean(pvalue)) %>%
+   mutate(parentTerm=ifelse(grepl("MHC",parentTerm),
+                           "antigen processing and presentation\nof peptide antigen via MHC class I",as.character(parentTerm)))%>%
+  mutate(parentTerm=gsub("phosphatidylinositol 3-kinase/protein kinase B signal transduction",
+                         "phosphatidylinositol 3-kinase/protein\nkinase B signal transduction",
+                         parentTerm))
+
+library(scales)
+ggplot(reducedTerms2, aes(x=parentTerm, y=pop, colour=mean_p, size=n_genes)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=seq(2,32,by=6),range = c(1,4), name="number genes") +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5), 
+        strip.text.x = element_blank(),
+        legend.justification="top",
+        panel.spacing = unit(0.1, "lines")) +
+  scale_colour_viridis(option="inferno",name="mean p-value")
+
+write.table(reducedTerms, paste0(outdir,"/GO_ALL_Tajima_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_GO_sig_rrvgo.png"), plot=last_plot(), device="png",bg="white",width=190,height=100, units="mm") 
+```
+
+###### Immune genes
+
+```{r significant immune genes}
+go_results<- go_results[go_results$ID %in% immune_GO$GO_ID,]
+
+ggplot(go_results, aes(x=Description, y=pop, colour=pvalue, size=Count)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5), 
+        strip.text.x = element_blank(),
+        legend.justification="top",
+        panel.spacing = unit(0.1, "lines")) +
+  scale_colour_viridis(option="inferno")
+
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_GO_immune_sig.png"), plot=last_plot(), device="png",bg="white",width=250,height=130, units="mm")
+```
+
+
+Look at immune functions among outliers irrespective of enrichment
+
+
+```{r Tajima's D Outlier Immune Functions GO}
+outliers_GO<- scate.summary.out2 %>%
+  filter(tajima.ns.outlier!=0) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  inner_join(immune_GO, by="Scate") %>%
+  select(Scate,pop,immune_DEG,tajima.ns,tajima.ns.outlier,geneName_parsed.y,GO_ID,name) %>%
+  dplyr::rename(geneName_parsed=geneName_parsed.y) %>%
+  mutate(geneName_parsed=ifelse(grepl("MHC Class I", geneName_parsed),
+                                paste0("MHCIA-",Scate), as.character(geneName_parsed)),
+         gene_pop=paste0(geneName_parsed,pop)) %>%
+  filter(!is.na(GO_ID))
+
+
+simMatrix <- calculateSimMatrix(outliers_GO$GO_ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(abs(outliers_GO$tajima.ns), outliers_GO$GO_ID)
+reducedTerms_immuneGO <- reduceSimMatrix(simMatrix,
+                               "uniqueness",
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db") 
+outliers_GO2<- reducedTerms_immuneGO %>%
+  dplyr::rename(GO_ID=go) %>%
+  right_join(outliers_GO, by="GO_ID") 
+
+outliers_GO2 <- outliers_GO2 %>%
+  mutate(parentTerm=ifelse(grepl("MHC",parentTerm),
+                           "antigen processing and presentation\nof peptide antigen via MHC class I",as.character(parentTerm))) %>%
+  mutate(parentTerm=ifelse(grepl("CD8-positive",parentTerm),
+                           "CD8-positive, alpha-beta T cell differentiation\ninvolved in immune response",as.character(parentTerm)))
+#outliers_GO<- outliers_GO %>%
+#  mutate(axis.colour=ifelse(geneName_parsed %in% overlaps,
+#                            "grey50","black"))
+
+
+ggplot(outliers_GO,
+       aes(x=geneName_parsed,y=name,fill=tajima.ns)) + 
+  geom_tile() + peri_tile + 
+  facet_grid(~pop, scales="free", space="free") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize-1),
+        legend.position = "top") +
+  scale_fill_gradient2(low="deepskyblue3",
+                       high="red3",
+                       na.value = "white",
+                       mid="azure") +
+  labs(y="simplified GO term",
+       x="",
+       fill="Tajima's D")
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_GO_immune.png"), plot=last_plot(), device="png",bg="white",width=250,height=100, units="mm") 
+
+```
+
+```{r Tajima immune KEGG}
+outliers_KEGG<- scate.summary.out2 %>%
+  filter(tajima.ns.outlier!=0) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  inner_join(immune_KEGG, by="Scate") %>%
+  dplyr::rename(geneName_parsed=geneName_parsed.y) %>%
+  mutate(geneName_parsed=ifelse(grepl("MHC Class I", geneName_parsed),
+                                paste0("MHCIA-",Scate), as.character(geneName_parsed)),
+         gene_pop=paste0(geneName_parsed,pop))
+
+ggplot(outliers_KEGG,
+       aes(x=geneName_parsed,y=Pathway_combined,fill=tajima.ns)) + 
+  geom_tile() + peri_tile + 
+  facet_grid(~pop, scales="free", space="free") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize-1),
+        legend.position = "top") +
+  scale_fill_gradient2(low="deepskyblue3",
+                       high="red3",
+                       na.value = "white",
+                       mid="azure") +
+  labs(y="KEGG pathway",
+       x="",
+       fill="Tajima's D")
+
+
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_KEGG_immune.png"), plot=last_plot(), device="png",bg="white",width=220,height=120, units="mm") 
+```
+
+```{r summary immune terms}
+outliers_KEGG<- outliers_KEGG %>%
+  select(Scate,geneName_parsed,tajima.ns,tajima.ns.outlier,Pathway_combined,pop) %>%
+  dplyr::rename(term=Pathway_combined) %>%
+  mutate(db="KEGG",
+         gene_pop_path=paste0(Scate,pop,term)) %>%
+  filter(!duplicated(gene_pop_path)) %>%
+  select(!gene_pop_path)
+
+outliers_GO2<- outliers_GO2 %>%
+  select(Scate,geneName_parsed,tajima.ns,tajima.ns.outlier,parentTerm,pop) %>%
+  dplyr::rename(term=parentTerm) %>%
+  mutate(db="GO")
+
+outliers_tajima<- rbind(outliers_KEGG,outliers_GO2)
+outliers_tajima$pop<- factor(outliers_tajima$pop, levels=c("STER","KLDR","CEBO"))
+outliers_tajima_summary<-  outliers_tajima %>%
+  group_by(pop,term,db) %>%
+  summarise(n_positive=sum(tajima.ns.outlier[tajima.ns.outlier==1]),
+            n_negative=sum(abs(tajima.ns.outlier[tajima.ns.outlier==-1]))) %>%
+  pivot_longer(c(n_positive,n_negative), values_to = "count")
+
+
+tajima_immune_plot<- ggplot(outliers_tajima,
+       aes(x=term,y=geneName_parsed,fill=tajima.ns)) + 
+  geom_tile() + peri_tile + 
+  facet_grid(pop ~ db, scales="free", space="free") + 
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize-1),
+        axis.text.y=element_text(size=basesize-1),
+        legend.position = "top",
+        legend.key.width=unit(5,"mm"),
+        plot.margin = margin(t = 5,  # Top margin
+                                          r = 5,  # Right margin
+                                          b = 1,  # Bottom margin
+                                          l = 5, unit="mm")) +
+  scale_fill_gradient2(low="deepskyblue3",
+                       high="red3",
+                       na.value = "white",
+                       mid="azure") +
+  labs(y="",
+       x="",
+       fill="Tajima's D")
+
+
+tajima_immune_plot
+ggsave(filename=paste0( outdir,"/figure2.png"), plot=last_plot(), device="png",bg="white",width=215,height=310, units="mm") 
+
+
+
+a<- ggplot(outliers_tajima_summary,aes(x=term,y=count,fill=name)) + 
+  geom_bar(stat="identity", position=position_dodge(width=0.9)) +
+  facet_grid(db~pop, scales="free") + 
+  peri_figure + 
+    theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize),
+          axis.text.y = element_text(hjust=0.5),
+        legend.position = "none",
+        legend.key.width=unit(5,"mm"),
+        plot.margin = margin(t = 5,  # Top margin
+                                          r = 5,  # Right margin
+                                          b = 5,  # Bottom margin
+                                          l = 0, unit="mm")) +
+  scale_fill_manual(values=c("deepskyblue3","red3")) + 
+  labs(x="",
+       y="") +
+   coord_flip()
+
+i=unique(outliers_tajima$term)[1]
+term_overlap<- list() 
+for(i in unique(outliers_tajima$term)){
+  sub<- outliers_tajima[which(outliers_tajima$term==i),]
+  dups<- sub$Scate[duplicated(sub$Scate)]
+  sub<- sub %>%
+    mutate(geneName_parsed=ifelse(!Scate %in% dups,NA,geneName_parsed),
+           tajima.ns.outlier=ifelse(!Scate %in% dups,NA,tajima.ns.outlier))
+  
+  term_overlap[[i]]<- sub
+}
+term_overlap<- as.data.frame(do.call("rbind",term_overlap))
+term_overlap$pop<- factor(term_overlap$pop,levels=c("STER","KLDR","CEBO"))
+
+b<- ggplot(term_overlap,aes(x=geneName_parsed,y=term, fill=as.factor(tajima.ns.outlier))) + 
+  geom_tile() + 
+  facet_grid(db~pop, scales="free",space="free") +
+   peri_tile +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize),
+        strip.background = element_blank(),
+        legend.position="none",
+        axis.ticks = element_line(colour = "black",
+                                    linewidth = 0.1),
+        strip.text.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.line.y = element_line(colour = "black",
+                                  linewidth = baselwd), 
+        axis.line.x = element_line(colour = "black",
+                                   linewidth = baselwd),
+        plot.margin = margin(t = 5,  # Top margin
+                             r = 0,  # Right margin
+                             b = 5,  # Bottom margin
+                             l = 5, unit="mm")) +
+  scale_fill_manual(values=c("deepskyblue3","red3"), na.value = "white")+
+  scale_y_discrete(position="right") +
+  labs(x="",
+       y="")
+
+
+
+  ggarrange(b,a, ncol=2, nrow=1, align="h", widths=c(1,1.2))
+  
+ggsave(filename=paste0( outdir,"/fig_overlaps.pdf"), plot=last_plot(), device="pdf",bg="white",width=310,height=215, units="mm") 
+```
+
+
+##### Positive Tajima's D
+
+```{r Pos Tajima STER,eval=FALSE}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(tajima.ns.outlier==1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+
+MHC_ster<- scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(tajima.ns.outlier==1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_ster<- go_results@result
+write.table(go_results_ster, paste0(outdir,"/GO_STER_Tajima_pos.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_ster$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_ster$pvalue, go_results_ster$ID)
+reducedTerms_ster <- reduceSimMatrix(simMatrix,
+                               scores=scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_ster <- reducedTerms_ster %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_ster,by="ID")
+write.table(reducedTerms_ster, paste0(outdir,"/GO_STER_Tajima_pos_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r Pos Tajima KLDR,eval=FALSE}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(tajima.ns.outlier==1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+MHC_kldr<- scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(tajima.ns.outlier==1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_kldr<- go_results@result
+write.table(go_results_kldr, paste0(outdir,"/GO_KLDR_Tajima_pos.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_kldr$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_kldr$pvalue, go_results_kldr$ID)
+reducedTerms_kldr <- reduceSimMatrix(simMatrix,
+                               scores=scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_kldr <- reducedTerms_kldr %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_kldr,by="ID")
+write.table(reducedTerms_kldr, paste0(outdir,"/GO_kldr_Tajima_pos_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r Pos Tajima CEBO, eval=FALSE}
+### CEBO
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(tajima.ns.outlier==1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+MHC_cebo<- scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(tajima.ns.outlier==1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_cebo<- go_results@result
+write.table(go_results_cebo, paste0(outdir,"/GO_CEBO_Tajima_pos.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_cebo$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_cebo$pvalue, go_results_cebo$ID)
+reducedTerms_cebo <- reduceSimMatrix(simMatrix,
+                               scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_cebo <- reducedTerms_cebo %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_cebo,by="ID")
+write.table(reducedTerms_cebo, paste0(outdir,"/GO_CEBO_Tajima_pos_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r summarize pos Tajima GO}
+### sumarise
+go_cebo<- read.table(paste0(outdir,"/GO_CEBO_Tajima_pos.tsv"), sep="\t", header=TRUE)
+go_kldr<- read.table(paste0(outdir,"/GO_KLDR_Tajima_pos.tsv"),sep="\t", header=TRUE)
+go_ster<- read.table(paste0(outdir,"/GO_STER_Tajima_pos.tsv"),sep="\t", header=TRUE)
+go_cebo$pop<- "CEBO"
+go_kldr$pop<- "KLDR"
+go_ster$pop<- "STER"
+go_results_pos<- rbind(go_cebo,go_kldr,go_ster)
+go_results_pos<- go_results_pos %>%
+  filter(p.adjust<0.05 & Count>1) %>%
+  mutate(immune=ifelse(ID %in% immune_GO$GO_ID,
+                       "immune",
+                       "non-immune"),
+         D="pos")
+         
+  
+
+ggplot(go_results_pos, aes(x=Description, y=pop, colour=pvalue, size=Count)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5),
+        legend.justification="top",
+        panel.spacing = unit(0.1, "lines")) +
+  scale_colour_viridis(option="inferno") +
+  facet_grid(~immune, scales="free")
+
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_pos_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=260,height=110, units="mm") 
+```
+
+##### Negative Tajima's D
+
+```{r neg Tajima STER,eval=FALSE}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(tajima.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+
+MHC_ster<- scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(tajima.ns.outlier==-1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_ster<- go_results@result
+write.table(go_results_ster, paste0(outdir,"/GO_STER_Tajima_neg.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_ster$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_ster$pvalue, go_results_ster$ID)
+reducedTerms_ster <- reduceSimMatrix(simMatrix,
+                               scores=scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_ster <- reducedTerms_ster %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_ster,by="ID")
+write.table(reducedTerms_ster, paste0(outdir,"/GO_STER_Tajima_neg_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r neg Tajima KLDR,eval=FALSE}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(tajima.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+MHC_kldr<- scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(tajima.ns.outlier==-1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_kldr<- go_results@result
+write.table(go_results_kldr, paste0(outdir,"/GO_KLDR_Tajima_neg.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_kldr$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_kldr$pvalue, go_results_kldr$ID)
+reducedTerms_kldr <- reduceSimMatrix(simMatrix,
+                               scores=scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_kldr <- reducedTerms_kldr %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_kldr,by="ID")
+write.table(reducedTerms_kldr, paste0(outdir,"/GO_kldr_Tajima_neg_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r neg Tajima CEBO, eval=FALSE}
+### CEBO
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(tajima.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+MHC_cebo<- scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(tajima.ns.outlier==-1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_cebo<- go_results@result
+write.table(go_results_cebo, paste0(outdir,"/GO_CEBO_Tajima_neg.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_cebo$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_cebo$pvalue, go_results_cebo$ID)
+reducedTerms_cebo <- reduceSimMatrix(simMatrix,
+                               scores,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+
+
+reducedTerms_cebo <- reducedTerms_cebo %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_cebo,by="ID")
+write.table(reducedTerms_cebo, paste0(outdir,"/GO_CEBO_Tajima_neg_rrvgo.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+```
+
+```{r summarize neg Tajima GO}
+### sumarise
+go_cebo<- read.table(paste0(outdir,"/GO_CEBO_Tajima_neg.tsv"), sep="\t", header=TRUE)
+go_kldr<- read.table(paste0(outdir,"/GO_KLDR_Tajima_neg.tsv"),sep="\t", header=TRUE)
+go_ster<- read.table(paste0(outdir,"/GO_STER_Tajima_neg.tsv"),sep="\t", header=TRUE)
+go_cebo$pop<- "CEBO"
+go_kldr$pop<- "KLDR"
+go_ster$pop<- "STER"
+go_results_neg<- rbind(go_cebo,go_kldr,go_ster)
+go_results_neg<- go_results_neg %>%
+  filter(p.adjust<0.05 & Count>1) %>%
+  mutate(immune=ifelse(ID %in% immune_GO$GO_ID,
+                       "immune",
+                       "non-immune"),
+         D="neg")
+         
+  
+
+ggplot(go_results_neg, aes(x=Description, y=pop, colour=pvalue, size=Count)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5),
+        legend.justification="top",
+        panel.spacing = unit(0.1, "lines")) +
+  scale_colour_viridis(option="inferno") +
+  facet_grid(~immune, scales="free")
+
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_neg_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=260,height=110, units="mm") 
+```
+
+```{r summarize direction}
+directional_go<- rbind(go_results_pos, go_results_neg)
+
+directional_go<- directional_go %>%
+  mutate(D=ifelse(D=="pos","D > 0", "D < 0")) %>%
+  mutate(immune=ifelse(ID %in% immune_GO$GO_ID,
+                       "immune",
+                       "non-immune"),
+        Description=ifelse(grepl("MHC",Description),
+                           "antigen processing and presentation\nof peptide antigen via MHC class I",as.character(Description))) %>%
+  mutate(Description=ifelse(
+    grepl("calcium-dependent cell-cell",Description),
+    "calcium-dependent cell-cell adhesion via\nplasma membrane cell adhesion molecules",
+    Description)) %>%
+  mutate(Description=ifelse(
+    grepl("homophilic",Description),
+    "homophilic cell adhesion via\nplasma membrane adhesion molecules",
+    Description)) %>%
+  mutate(Description=ifelse(
+    grepl("transmembrane receptor",Description),
+    "transmembrane receptor protein\ntyrosine kinase signaling pathway",
+    Description))
+
+ggplot(directional_go, aes(x=Description, y=pop, colour=p.adjust, size=Count)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5),
+        legend.justification="top",
+        panel.spacing = unit(0.1, "lines")) +
+  scale_colour_viridis(option="inferno") +
+  facet_grid(D~immune, scales="free")
+
+ggsave(filename=paste0(outdir,"/fig_Tajima_directional_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=270,height=120, units="mm") 
+```
+
+#### Pi GO
+
+```{r pi STER}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(pi.ns.outlier==1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+#foreground<-  scate.summary.out2 %>%
+#  filter(pop=="STER") %>%
+#  filter(pi.ns.outlier==1)
+#foreground<- as.character(degs2anolis$Anolis_GeneID#_GCF.GAF[which(degs2anolis$Scate %in% #foreground$geneID)])
+#foreground<- foreground[!is.na(foreground)]
+
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+
+go_results_ster<- go_results@result
+write.table(go_results_ster, paste0(outdir,"/GO_STER_pi-pos.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(pi.ns.outlier==-1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+
+go_results_ster<- go_results@result
+write.table(go_results_ster, paste0(outdir,"/GO_STER_pi-neg.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+MHC_ster<- scate.summary.out2 %>%
+  filter(pop=="STER") %>%
+  filter(pi.ns.outlier==1) %>%
+  filter(geneID %in% MHC_paralogs)
+
+```
+
+```{r pi kldr}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(pi.ns.outlier==1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+
+go_results_kldr<- go_results@result
+write.table(go_results_kldr, paste0(outdir,"/GO_KLDR_pi-pos.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+MHC_kldr<- scate.summary.out2 %>%
+  filter(pop=="KLDR") %>%
+  filter(pi.ns.outlier==1) %>%
+  filter(geneID %in% MHC_paralogs)
+```
+
+```{r pi CEBO}
+foreground<-  scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(pi.ns.outlier==1) %>%
+  dplyr::rename(Scate=geneID) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  mutate(gene_composite=paste0(Anolis_GeneID_GCF.GAF,Scate)) %>%
+  select(gene_composite)
+
+
+go_results<- enricher(foreground$gene_composite, 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+
+go_results_cebo<- go_results@result
+write.table(go_results_cebo, paste0(outdir,"/GO_CEBO_pi-pos.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+
+MHC_cebo<- scate.summary.out2 %>%
+  filter(pop=="CEBO") %>%
+  filter(pi.ns.outlier==1) %>%
+  filter(geneID %in% MHC_paralogs)
+```
+
+```{r pi_GO}
+go_results_cebo$pop<- "CEBO"
+go_results_kldr$pop<- "KLDR"
+go_results_ster$pop<- "STER"
+
+go_results<- rbind(go_results_cebo, go_results_kldr, go_results_ster)
+go_results<- go_results[which(go_results$pvalue<0.05),]
+go_results$pop<- factor(go_results$pop, levels=c("STER","KLDR","CEBO"))
+go_results$immune<- ifelse(go_results$ID %in% immune_GO,"immune","other")
+go_results$Description<- factor(go_results$Description, levels=unique(go_results$Description[order(go_results$immune)]))
+go_results$Description=ifelse(grepl("MHC",go_results$Description),
+                           "antigen processing and presentation\nof peptide antigen via MHC class I",as.character(go_results$Description))
+
+ggplot(go_results, aes(x=Description, y=pop, colour=pvalue, size=Count)) + 
+  geom_point() + peri_figure + 
+  scale_size_continuous(breaks=c(1,2,3),range = c(1,3)) +
+  labs(x="",y="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5), 
+        strip.text.x = element_blank(),
+        legend.justification="top")+
+  scale_colour_viridis(option="inferno")
+
+
+
+ggsave(filename=paste0(outdir,"/fig_pi_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=100,height=80, units="mm") 
+
+
+```
+
+```{r immune terms pi,eval=FALSE}
+
+terms_MHC<- rbind(MHC_cebo, MHC_kldr, MHC_ster)
+terms_MHC<- terms_MHC %>%
+  group_by(pop) %>%
+  summarise(n_genes=n()) %>%
+  mutate(name="MHC Class I paralog",GO_ID=NA,immune="immune")
+
+terms_MHC$pop<- factor(terms_MHC$pop,levels=c("STER","KLDR","CEBO"))
+terms_MHC$total_genes<- c(20,24,20)
+
+mhc_plot<- ggplot(terms_MHC, aes(x=pop,y=(n_genes/total_genes), fill=pop)) + 
+  geom_bar(stat="identity") + 
+  peri_figure + 
+  labs(x="",y=expression(atop(paste("Percent positive ",pi," outlier"),paste("MHC Class I paralogs")))) + 
+  scale_fill_manual(values=viridispairs[c(3,6,12)], name="") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5),
+        legend.position="none") + 
+  scale_y_continuous(expand=c(0,0),labels = scales::percent_format(accuracy = 1))
+
+
+ggsave(filename=paste0(outdir,"/fig_pi_MHC.png"), plot=mhc_plot, device="png",bg="white",width=40,height=60, units="mm") 
+
+
+
+
+
+pi_venn<- list("STER"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==1 & scate.summary.out2$pop=="STER" & scate.summary.out2$immune_DEG=="immune DEG")],
+                "KLDR"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==1 & scate.summary.out2$pop=="KLDR" & scate.summary.out2$immune_DEG=="immune DEG")],
+              "CEBO"=scate.summary.out2$geneID[which(scate.summary.out2$pi.ns.outlier==1 & scate.summary.out2$pop=="CEBO" & scate.summary.out2$immune_DEG=="immune DEG")])
+
+ggvenn(pi_venn, set_name_size = 3, text_size=3, stroke_size=0.3, fill_color = viridispairs[c(3,6,12)], show_percentage = FALSE) + 
+  coord_cartesian(clip="off") + 
+  coord_equal() +
+  labs(title=expression(paste(pi," positive immune outliers"))) + 
+  theme(plot.title = element_text(hjust = 0.5, size=basesize+1))
+
+ggarrange(b,c, labels=c("A","B"))
+ggsave(filename=paste0(outdir,"/fig_pi_pos_immune.png"), plot=b, device="png",bg="white",width=80,height=80, units="mm") 
+
+summary(scate.summary.out$n_polymorphic.ns[which(scate.summary.out$immune_DEG=="random")])
+```
+
+```{r Figure 1}
+multipanel<- ggarrange(ggarrange(megapi.all,megataj.all,
+                                 ncol=2,
+                                 labels=c("A","D")),
+                       ggarrange(pi_venn_upper_fig,mhc_plot,tajd_overall_fig,
+                                 ncol=3,
+                                 labels=c("B","C","E")), 
+                       heights=c(2,1), 
+                       nrow=2, 
+                       font.label=list(size=basesize)) 
+
+
+multipanel<- ggarrange(ggarrange(megapi.all,
+                                 megataj.all,
+                                 nrow=2),
+                       ggarrange(NULL,
+                                 ggarrange(pi_venn_lower_fig,
+                                          pi_venn_upper_fig,
+                                          ncol=2,
+                                          widths=c(0.8,0.8)),
+                                 mhc_plot,
+                                 ggarrange(tajd_neg_fig,
+                                           tajd_pos_fig,
+                                           widths=c(0.8,0.8),
+                                           ncol=2),
+                                 NULL,
+                                 nrow=5,
+                                 ncol=1,
+                                 heights = c(0.1,0.8,0.8,0.8,0.1)),
+                       ncol=2, 
+                       widths=c(1,0.5))
+                                 
+multipanel<- ggarrange(ggarrange(megapi.all,
+                                 megataj.all,
+                                 nrow=2,
+                                 labels=LETTERS[c(1,7)]),
+                       ggarrange(NULL,
+                                 pi_venn_lower_fig,
+                                 pi_venn_upper_fig,
+                                 mhc_plot,
+                                 tajd_neg_fig,
+                                 tajd_pos_fig,
+                                 NULL,
+                                 nrow=7,
+                                 ncol=1,
+                                 heights=c(0.1,0.2,0.2,0.3,0.2,0.2,0.1),
+                                 labels=c("",LETTERS[2:6])),
+                       ncol=2, 
+                       widths=c(1,0.5))
+                                 
+    
+
+#ggsave(filename=paste0(outdir,"/fig_multipanel.png"),plot=multipanel, device="png", bg="white",width=220, height=205, units="mm")
+ggsave(filename=paste0(outdir,"/fig_multipanel.png"),plot=multipanel, device="png", bg="white",width=150, height=250, units="mm")
+#ggsave(filename=paste0(outdir,"/fig_multipanel.pdf"),plot=multipanel, device="pdf", bg="white",width=220, height=205, units="mm")
+```
+
+## F~ST~
+
+```{r configure-fst}
+#| label: configure-fst
+
+genDes.fst <- read.csv(paste(datadir,"Fst","genDes.fst.csv",sep="/"),header = T)
+
+deg.fst <- read.csv(paste(datadir,"Fst","deg.fst.csv",sep="/"),header = T)
+max.deg.fst<- deg.fst %>%
+  group_by(geneID) %>%
+  summarise(maxFst=max(Fst))
+
+deg.fst<- gene_categories(deg.fst, geneID)
+deg.fst$immune_DEG<- ifelse(grepl("upper", deg.fst$immune_DEG),
+                        gsub("upper ","", deg.fst$immune_DEG),
+                        deg.fst$immune_DEG)
+deg.fst$immune_DEG<- ifelse(grepl("lower", deg.fst$immune_DEG),
+                        gsub("lower ","", deg.fst$immune_DEG),
+                        deg.fst$immune_DEG)
+
+
+deg.labels <- read.xlsx(paste(datadir,"GO_annot","Scate_DEGs_annot.xlsx",sep="/"))
+
+deg.labels <- deg.labels %>% 
+  select(Scate, geneName_parsed,Anolis_GeneID_GCF.GAF) %>%
+  dplyr::rename(geneID=Scate) %>%
+  mutate(geneID=gsub("-RA","",geneID)) %>% 
+  filter(!duplicated(geneID)) %>%
+  right_join(max.deg.fst, by="geneID") %>%
+  mutate(geneName_parsed=ifelse(grepl("MHC Class I", geneName_parsed),
+            paste0("MHCIA-",geneID),
+            as.character(geneName_parsed)))
+
+deg.labels<- gene_categories(deg.labels, geneID)
+deg.labels$immune_DEG<- ifelse(grepl("upper", deg.labels$immune_DEG),
+                        gsub("upper ","", deg.labels$immune_DEG),
+                        deg.labels$immune_DEG)
+deg.labels$immune_DEG<- ifelse(grepl("lower", deg.labels$immune_DEG),
+                        gsub("lower ","", deg.labels$immune_DEG),
+                        deg.labels$immune_DEG)
+
+deg.labels.names<- deg.labels %>%
+  filter(cat_immune=="immune") %>%
+  filter(grepl("Uncharacterized",geneName_parsed,ignore.case=TRUE))
+
+deg.labels99<- deg.labels %>%
+  filter(maxFst>quantile(genDes.fst$Fst,0.99)) 
+#conv.fst<- merge(deg.labels99, conv.ac, by="geneName_parsed", all.x=TRUE) #for the gProfiler GO
+
+deg.labels99<- deg.labels99 %>%
+  mutate(geneName_parsed=ifelse(geneName_parsed=="Uncharacterized",NA,as.character(geneName_parsed))) %>%
+mutate(geneName_parsed=ifelse(immune_DEG=="DEG" & maxFst<0.90,NA,as.character(geneName_parsed)))
+deg.labels95<- deg.labels %>%
+  filter(maxFst>quantile(genDes.fst$Fst,0.95)) %>%
+  mutate(geneName_parsed=ifelse(geneName_parsed=="Uncharacterized",NA,as.character(geneName_parsed))) %>%
+  mutate(geneName_parsed=ifelse(immune_DEG=="DEG" & maxFst<0.90,NA,as.character(geneName_parsed)))
+
+deg.labels05<- deg.labels %>%
+  filter(maxFst<quantile(genDes.fst$Fst,0.05)) %>%
+  mutate(geneName_parsed=ifelse(geneName_parsed=="Uncharacterized",NA,as.character(geneName_parsed)))
+
+
+randNum1 <- runif(nrow(deg.labels99), min = 500, max = 6000)
+randNum1 <- runif(nrow(deg.labels95), min = 500, max = 6000)
+#https://support.bioconductor.org/p/9146885/
+#q=number immune genes as outlier
+#m=number immune genes in universe (not the genome overall but in the sampled universe of 762 genes)
+#n=number of non-immune genes in universe.
+#k=number of samples drawn (n>99th percentile)
+phy<- phyper(q=length(unique(deg.labels95$geneID[deg.labels95$cat_immune!=""]))-1,
+              m=length(unique(deg.fst$geneID[deg.fst$geneID %in% immune])),
+              n=length(unique(deg.fst$geneID[!deg.fst$geneID %in% immune])),
+              k=length(unique(deg.labels95$geneID)),
+              lower.tail = FALSE)
+
+length(deg.labels95$geneID[deg.labels95$geneID %in% scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier!=0)]])
+```
+
+To look more directly investigate population specific divergent selection we characterized F~ST~ for `r nrow(deg.fst)` non-synonymous SNPs in `r nrow(deg.labels)` DEGs with NS SNPs and compared with gene desert SNPs. Across all *S. catenatus* populations, `r nrow(deg.labels95)` SNPs in `r length(unique(deg.labels95$geneID))` genes were outside the 95th percentile of gene desert SNP F~ST~ values, or `r round((length(unique(deg.labels95$geneID))/length(unique(deg.labels$geneID)))*100,1)`of total non-synonymous SNPs measured (@fig-fst95). Of these outliers, `r round((length(unique(deg.labels95$geneID[deg.labels95$cat_immune!=""]))/length(unique(deg.labels95$geneID))*100),1)`% of these are immune or inflammation genes, which is not a significant enrichment using a hypergeometric test (p = `r phy`).
+
+```{r fig-fst95}
+#| label: fig-fst95
+#| warning: false
+#| echo: false
+#| fig-cap: "DEGs with highly divergent SNPs among all populations of S. catenatus. Grey bars represent the distribution of F~ST~ of gene desert SNPs. Coloured vertical bars indicate F~ST~ at each non-synonymous site in DEGS. Dark red line indicates the 99th percentile with selected outlier genes highlighted (NgeneDesert SNPs = 133,322, N non-synonymous SNPs = 5073 ,N SNPs in top 1% = 67)."
+fst_plot<- ggplot(genDes.fst, 
+                  aes(x=Fst)) + 
+  geom_histogram(colour="gray", 
+                 fill="gray", 
+                 binwidth=0.005)+
+  geom_vline(xintercept=quantile(genDes.fst$Fst,0.95),
+             linetype=2, 
+             color="darkred", 
+             lwd=baselwd+0.3)+
+  geom_rug(data=deg.fst, 
+           aes(x = Fst, colour=immune_DEG), 
+           inherit.aes = F, 
+           linewidth=baselwd+0.1) +
+  geom_segment(data = deg.labels95,
+               aes(x = maxFst, xend = maxFst, y = 0, yend = randNum1, lwd=baselwd, colour=immune_DEG, alpha=0.5),
+              linewidth = baselwd+0.1, 
+              linetype=88, 
+              show.legend = FALSE)+
+  geom_text_repel(data = deg.labels95, 
+                  aes(x = maxFst, y = randNum1, label = geneName_parsed, colour=immune_DEG),
+                  hjust = -0.1, 
+                  vjust = 0.5, 
+                  max.overlaps = 15, 
+                  box.padding = 0.5, 
+                  show.legend = FALSE, 
+                  size=geom.text.size, 
+                  segment.size=baselwd) +
+  scale_x_continuous(breaks=(seq(0,1,0.1)))+
+  scale_y_continuous(breaks=(seq(0,6000,1000)))+
+  labs(y=expression(paste("#",SNPs[geneDesert])),
+       x=expression(paste(F[ST])),
+       colour="") + 
+  theme(legend.title=element_blank(),
+        legend.position="top") + peri_figure
+
+ 
+fst_plot
+
+ggsave(paste0(outdir,"/fst-95.png"), fst_plot, device="png",width=150,height=110,units="mm", bg="white")
+ggsave(paste(outdir,"report","figures","fst-95.png",sep="/"), fst_plot, device="pdf",width=150,height=110,units="mm", bg="white")
+
+```
+
+```{r}
+#| warning: false
+#| eval: false
+#| fig.cap: "Top rated GO terms for FST outliers"
+
+conv.fst<- conv.fst %>%
+  filter(!duplicated(geneID)) %>%
+  filter(converted_alias_manual_additions!="" & converted_alias_manual_additions!="None")
+
+go_res<- gost(conv.fst$converted_alias_manual_additions, organism="acarolinensis", significant=FALSE, evcodes=TRUE)
+go_res<- go_res$result
+go_res<- go_res[order(go_res$p_value),]
+rownames(go_res)<-1:nrow(go_res)
+go_res<- go_res[1:30,]
+
+go_out<- list()
+for(i in 1:nrow(go_res)){
+  sub<- go_res[i,]
+  if(grepl(",",sub$intersection)){
+    #i=1
+    ensg<- str_split_1(sub$intersection,"\\,")
+    sub2<- data.frame(p_value=rep(sub$p_value,length(ensg)),
+                    source=rep(sub$source, length(ensg)),
+                    term_name=rep(sub$term_name, length(ensg)),
+                    converted_alias_manual_additions=ensg)
+    go_out[[i]]<- sub2
+  }else{
+    sub$converted_alias_manual_additions<- sub$intersection
+
+    go_out[[i]]<- sub[,c("p_value","source","term_name","converted_alias_manual_additions")]
+  }
+}
+go_res<- do.call("rbind",go_out)
+go_res$term<- paste(go_res$source,go_res$term_name)
+go_res<- merge(go_res,conv.fst, by="converted_alias_manual_additions")
+
+go_res$gene<- paste(go_res$geneID, go_res$geneName_parsed)
+#remove the goterm with a long name for plotting purposes
+go_res<- go_res[!grepl("acting on paired donors", go_res$term_name),]
+
+ggplot(go_res, aes(x=gene,y=term,fill=p_value)) + 
+  geom_tile() + peri_tile + coord_equal() +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
+  labs(x="",y="")
+```
+
+```{r}
+#| label: fig-fst-GO
+#| warning: false
+#| eval: false
+#| fig.cap: "Top rated GO terms for FST outliers"
+
+deg.labels95$gene_composite<- paste0(deg.labels95$Anolis_GeneID_GCF.GAF,deg.labels95$geneID)
+go_results_fst<- enricher(unique(deg.labels95$gene_composite), 
+                           universe=go2gene_bp$gene_composite, 
+                           TERM2GENE = go2gene_bp, 
+                           TERM2NAME = go2name_bp)
+go_results_fst<- go_results_fst@result
+
+go_results_fst$immune<- ifelse(go_results_fst$ID %in% immune_GO,"immune","other")
+go_results_fst$Description<- factor(go_results_fst$Description, 
+                          levels=unique(go_results_fst$Description[order(go_results_fst$immune)]))
+
+
+ggplot(go_results_fst[which(go_results_fst$pvalue<0.05),], aes(y=Count, x=Description, fill=pvalue)) + 
+  geom_bar(stat="identity") + peri_figure +
+  labs(y="#genes",x="") + 
+   theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5)) + 
+  scale_y_continuous(expand=c(0,0))
+#ggsave(filename=paste0(outdir,"/fig_FST_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=460,height=130, units="mm") 
+
+write.table(go_results_fst, paste0(outdir,"/GO_FST.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
+
+simMatrix <- calculateSimMatrix(go_results_fst$ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(go_results_fst$pvalue, go_results_fst$ID)
+reducedTerms_fst <- reduceSimMatrix(simMatrix,
+                               "uniqueness",
+                                threshold=0.7,
+                                orgdb="org.Hs.eg.db")
+
+reducedTerms_fst <- reducedTerms_fst %>%
+  dplyr::rename("ID"="go") %>%
+  right_join(go_results_fst,by="ID")
+
+reducedTerms_fst$immune<- ifelse(reducedTerms_fst$parent %in% immune_GO,"immune","other")
+reducedTerms_fst$parentTerm<- factor(reducedTerms_fst$parentTerm, 
+                          levels=unique(reducedTerms_fst$parentTerm[order(reducedTerms_fst$immune)]))
+
+reducedTerms_fst$term<- ifelse(grepl("MHC",reducedTerms_fst$term),
+                           "antigen processing and presentation\nof peptide antigen via MHC class I",
+                           as.character(reducedTerms_fst$term))
+
+fst_go<- ggplot(reducedTerms_fst[which(reducedTerms_fst$pvalue<0.05),], aes(x=term,y=Count, fill=pvalue)) + 
+  geom_bar(stat="identity") + peri_figure + 
+  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
+  labs(x="",y="#genes") +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5), 
+        strip.text.x = element_blank(),
+        legend.justification="top",
+        panel.spacing = unit(0, "lines")) + 
+  facet_grid(~parentTerm, scales="free",space="free_x") +
+  scale_fill_viridis(option="inferno") +
+  scale_y_continuous(expand=c(0,0),
+                     breaks = ~round(unique(pretty(.)))) 
+
+ggsave(filename=paste0(outdir,"/fig_FST_GO_sig.png"), plot=fst_go, device="png",bg="white",width=130,height=120, units="mm") 
+write.table(reducedTerms_fst,paste0(outdir,"/GO_FST_rrvgo.tsv"),row.names=FALSE,sep="\t")
+
+```
+
+```{r terms fst}
+terms_fst<- gaf %>%
+  filter(gaf$GeneID %in% deg.labels95$Anolis_GeneID_GCF.GAF) %>%
+  filter(namespace=="biological_process") %>%
+  group_by(name,GO_ID) %>%
+  summarise(n_genes=n())
+
+simMatrix <- calculateSimMatrix(terms_fst$GO_ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(terms_fst$n_genes, terms_fst$GO_ID)
+reducedTerms_fst <- reduceSimMatrix(simMatrix,
+                               "uniqueness",
+                                threshold=0.7,
+                                orgdb="org.Hs.eg.db")
+reducedTerms_fst <- reducedTerms_fst %>%
+  group_by(parentTerm,parent) %>%
+  summarise(n_genes=sum(score))
+
+reducedTerms_fst$immune<- ifelse(reducedTerms_fst$parent %in% immune_GO,"immune","other")
+reducedTerms_fst$parentTerm<- factor(reducedTerms_fst$parentTerm, 
+                          levels=unique(reducedTerms_fst$parentTerm[order(reducedTerms_fst$immune)]))
+
+
+ggplot(reducedTerms_fst, aes(x=parentTerm,y=n_genes, fill=n_genes)) + geom_bar(stat="identity") + coord_flip() + peri_figure
+
+```
+
+
+```{r}
+outliers_KEGG<- deg.labels95 %>%
+  dplyr::rename(Scate=geneID) %>%
+  select(Scate,maxFst,immune_DEG) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  inner_join(immune_KEGG, by="Scate") %>%
+  mutate(geneName_parsed=ifelse(grepl("MHC Class I", geneName_parsed),
+                                paste0("MHCIA-",Scate), as.character(geneName_parsed)))
+
+kegg_fst<- ggplot(outliers_KEGG,
+       aes(x=geneName_parsed,y=Pathway_combined,fill=maxFst)) + 
+  geom_tile() + peri_tile +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize-1),
+        legend.position = "top",
+        legend.key.width=unit(5,"mm")) +
+  scale_fill_gradient2(low="deepskyblue3",
+                       high="red3",
+                       na.value = "white",
+                       mid="azure") +
+  labs(y="KEGG pathway",
+       x="",
+       fill=expression(paste(F[ST])))
+kegg_fst
+
+ggsave(filename=paste0(outdir,"/fig_FST_KEGG_immune.png"), plot=last_plot(), device="png",bg="white",width=220,height=120, units="mm") 
+
+#ggarrange(fst_plot,kegg_fst, nrow=2, labels=c("A","B"))
+```
+
+
+```{r FST immune GO}
+outliers_GO<- deg.labels95 %>%
+  dplyr::rename(Scate=geneID) %>%
+  select(Scate,maxFst,immune_DEG) %>%
+  left_join(degs2anolis, by="Scate") %>%
+  inner_join(immune_GO, by="Scate") %>%
+  dplyr::rename(geneName_parsed=geneName_parsed.x)
+outliers_GO<- outliers_GO %>%
+  mutate(geneName_parsed=ifelse(grepl("MHC Class I",
+                                      outliers_GO$geneName_parsed),
+                                paste0("MHCIA-",Scate), as.character(geneName_parsed)))
+
+
+simMatrix <- calculateSimMatrix(outliers_GO$GO_ID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(outliers_GO$maxFst, outliers_GO$GO_ID)
+reducedTerms_immuneGO <- reduceSimMatrix(simMatrix,
+                               "uniqueness",
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db") ## fiddle with the threshold till you get terms that make sense
+outliers_GO<- reducedTerms_immuneGO %>%
+  dplyr::rename(GO_ID=go) %>%
+  right_join(outliers_GO, by="GO_ID") 
+
+outliers_GO <- outliers_GO %>%
+  mutate(parentTerm=ifelse(grepl("MHC",parentTerm),
+                           "antigen processing and presentation \n of peptide antigen via MHC class I",
+                           as.character(parentTerm))) 
+
+
+
+
+fst_go<- ggplot(outliers_GO,
+       aes(x=geneName_parsed,y=parentTerm,fill=maxFst)) + 
+  geom_tile() + peri_tile +
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize-1),
+        legend.position = "top",
+        legend.key.width=unit(9,"mm")) +
+  scale_fill_gradient2(low="deepskyblue3",
+                       high="red3",
+                       na.value = "white",
+                       mid="azure") +
+  labs(y="simplified GO term",
+       x="",
+       fill=expression(paste(F[ST])))
+
+ggsave(filename=paste0(outdir,"/fig_fst_GO_immune.png"), plot=fst_go, device="png",bg="white",width=250,height=100, units="mm") 
+```
+
+
+```{r}
+outliers_KEGG<- outliers_KEGG %>%
+  select(Scate,geneName_parsed,maxFst,Pathway_combined) %>%
+  dplyr::rename(term=Pathway_combined) %>%
+  mutate(db="KEGG")
+
+outliers_GO<- outliers_GO %>%
+  select(Scate,geneName_parsed,maxFst,parentTerm) %>%
+  dplyr::rename(term=parentTerm) %>%
+  mutate(db="GO")
+
+outliers_fst<- rbind(outliers_KEGG,outliers_GO)
+
+fst_immune_plot<- ggplot(outliers_fst,
+       aes(x=geneName_parsed,y=term,fill=maxFst)) + 
+  geom_tile() + peri_tile + 
+  facet_grid(db~., scales="free", space="free") + 
+  theme(axis.text.x = element_text(angle=90, 
+                                   hjust=1, 
+                                   vjust=0.5,
+                                   size=basesize-1),
+        legend.position = "top",
+        legend.key.width=unit(9,"mm")) +
+  scale_fill_gradient2(low="deepskyblue3",
+                       high="red3",
+                       na.value = "white",
+                       mid="azure") +
+  labs(y="",
+       x="",
+       fill=expression(paste(F[ST])))
+
+
+ggarrange(fst_plot,fst_immune_plot,
+          nrow=2, 
+          heights=c(0.8,1), 
+          widths=c(0.9,1),
+          labels=c("A","B")
+          )
+
+ggsave(filename=paste0(outdir,"/figure3.png"), plot=last_plot(), device="png",bg="white",width=220,height=230, units="mm") 
+
+```
+
+# Ideas for next time
+
+-   Use phased SNPS to measure haplotype length (package REHH, with XP-EHH test for measuring population specific sweeps among multiple pops). This will allow more for linked selection and selection on non-coding regions. This wasn't really possible here because of issues with the way the VCF was filtered seemed to exclude a bunch of sites from *S. tergeminus* and made their diversity similar. However, this was based on looking at the filtering for the [@mathur2023], but only AN\<323 was applied with this dataset... which is essentially a missingness filter. So I think it means that there are a lot of unique sites that are variable in STER.
+
+-   re-run Fu-Li's stats with *S. miliarus* as outgroup for *S. tergeminus* so they both can be directly.
+
+-   simply characterize geographic genetic variation and selection in DEGs **and immune** genes across Ohio. Could do genome sliding windows of a few tests and then see if our genes overlap with regions outside of the chromosomal/genome wide averages. This would allow for linkage of synonymous and non-synonymous sites, as well as regulatory regions.
+
+
+# All results summarized
+```{r all outliers}
+
+#| echo: false
+
+
+
+imm<- scate.summary.out2 %>%
+  full_join(deg.labels95,by=c("geneID")) %>%
+  mutate(pop=ifelse(is.na(pop),"FST",as.character(pop))) %>%
+  filter(pi.ns.outlier==1 | tajima.ns.outlier!=0 | !is.na(maxFst) | het.ns.outlier==1) %>%
+  dplyr::rename(geneName_parsed=geneName_parsed.x) %>%
+  select(geneID,geneName_parsed,pop,maxFst,n_polymorphic.ns, n_polymorphic.syn,heterozygosity.ns,minor_homoz.ns,pi.ns,tajima.ns,pi.ns.outlier, tajima.ns.outlier, het.ns.outlier) %>%
+  mutate(immune=ifelse(geneID %in% immune_terms$Scate,"immune","non-immune"))
+
+outlier_pi<- imm[which(imm$pi.ns.outlier==1),]
+k.test<-  outlier_pi %>% 
+  wilcox_test(pi.ns ~ pop) %>% 
+  add_y_position() %>%
+  adjust_pvalue(method="holm") %>%
+  add_significance() 
+ggplot(outlier_pi,aes(x=pop,y=pi.ns, colour=pop)) + geom_boxplot() + 
+  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd)
+
+outliers_list<- list(
+  Tajima=imm$geneID[which(imm$tajima.ns.outlier!=0)],
+  pi=imm$geneID[which(imm$pi.ns.outlier==1)],
+  Fst=imm$geneID[!is.na(imm$maxFst)],
+  Het=imm$geneID[which(imm$het.ns.outlier!=0)])
+
+venn_all_outliers<- ggvenn(outliers_list,
+                           set_name_size = 3, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           show_percentage = FALSE)
+
+
+
+```
+
+
+
+```{r outliers in both KLDR and STER}
+kldrster<- imm %>%
+  filter(pop!="CEBO") %>%
+  mutate(maxFst=ifelse(!is.na(maxFst),1,0),
+         pi.ns.outlier=ifelse(pi.ns.outlier==-1,0,pi.ns.outlier)) %>%
+  pivot_longer(c(maxFst,tajima.ns.outlier,pi.ns.outlier),
+               names_to="analysis",
+               values_to="value") %>%
+  group_by(geneID,analysis) %>%
+  summarise(n_pops=sum(abs(value))) %>%
+  filter(n_pops>1) %>%
+  mutate(immune=ifelse(geneID %in% immune_terms$Scate,"immune","non-immune"))
+
+
+kldrster_fst<- kldrster %>%
+  filter(analysis=="maxFst") %>%
+  filter(immune=="non-immune")
+kldrster_tajima<- kldrster %>%
+  filter(analysis=="tajima.ns.outlier")%>%
+  filter(immune=="non-immune")
+
+kldrster_pi<- kldrster %>%
+  filter(analysis=="pi.ns.outlier")%>%
+  filter(immune=="non-immune")
+
+venn_kldrster_nonimmune<- ggvenn(list(Tajima=kldrster_tajima$geneID,
+            pi=kldrster_pi$geneID,
+            Fst=kldrster_fst$geneID),
+            set_name_size = 3, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           show_percentage = FALSE) +
+  labs(title="KLDR+STER+FST non-immune") +
+  theme(plot.title = element_text(hjust = 0.5, size=basesize+1))
+
+kldrster_fst<- kldrster %>%
+  filter(analysis=="maxFst") %>%
+  filter(immune=="immune")
+kldrster_tajima<- kldrster %>%
+  filter(analysis=="tajima.ns.outlier")%>%
+  filter(immune=="immune")
+
+kldrster_pi<- kldrster %>%
+  filter(analysis=="pi.ns.outlier")%>%
+  filter(immune=="immune")
+
+venn_kldrster_immune<- ggvenn(list(Tajima=kldrster_tajima$geneID,
+            pi=kldrster_pi$geneID,
+            Fst=kldrster_fst$geneID),
+            set_name_size = 3, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           show_percentage = FALSE)+
+  labs(title="KLDR+STER+FST immune") +
+  theme(plot.title = element_text(hjust = 0.5, size=basesize+1))
+```
+```{r all 3 pops agreement}
+allpops<- imm %>%
+  mutate(maxFst=ifelse(!is.na(maxFst),1,0),
+         pi.ns.outlier=ifelse(pi.ns.outlier==-1,0,pi.ns.outlier)) %>%
+  pivot_longer(c(maxFst,tajima.ns.outlier,pi.ns.outlier),
+               names_to="analysis",
+               values_to="value") %>%
+  group_by(geneID,analysis) %>%
+  summarise(n_pops=sum(abs(value))) %>%
+  filter(n_pops>2) %>%
+  mutate(immune=ifelse(geneID %in% immune_terms$Scate,"immune","non-immune"))
+
+allpops_tajima<- allpops %>%
+  filter(analysis=="tajima.ns.outlier")%>%
+  filter(immune=="non-immune")
+
+allpops_pi<- allpops %>%
+  filter(analysis=="pi.ns.outlier")%>%
+  filter(immune=="non-immune")
+
+venn_3popoverlap_nonimmune<- ggvenn(list(Tajima=allpops_tajima$geneID,
+            pi=allpops_pi$geneID,
+            Fst=kldrster_fst$geneID),
+            set_name_size = 3, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           show_percentage = FALSE)+
+  labs(title="KLDR+STER+CEBO+FST non-immune") +
+  theme(plot.title = element_text(hjust = 0.5, size=basesize+1))
+
+
+allpops_tajima<- allpops %>%
+  filter(analysis=="tajima.ns.outlier")%>%
+  filter(immune=="immune")
+
+allpops_pi<- allpops %>%
+  filter(analysis=="pi.ns.outlier")%>%
+  filter(immune=="immune")
+
+venn_3popoverlap_immune<- ggvenn(list(Tajima=allpops_tajima$geneID,
+            pi=allpops_pi$geneID,
+            Fst=kldrster_fst$geneID),
+            set_name_size = 3, 
+           text_size=3, 
+           stroke_size=baselwd, 
+           show_percentage = FALSE)+
+  labs(title="KLDR+STER+CEBO+FST immune") +
+  theme(plot.title = element_text(hjust = 0.5, size=basesize+1))
+
+ggarrange(venn_all_outliers,ggarrange(venn_3popoverlap_immune,
+                                      venn_3popoverlap_nonimmune,
+                                      venn_kldrster_immune,
+                                      venn_kldrster_nonimmune,
+                                      nrow=4,
+                                      labels=c("B","C","D","E")),
+          ncol=2,
+          labels=c("A",""),
+          widths=c(0.7,1))
+
+ggsave(filename=paste0(outdir,"/figure_overlaps_outliers_all.png"), plot=last_plot(), device="png",bg="white",width=150,height=150, units="mm") 
+```
+
+```{r write all outliers}
+imm <- imm %>%
+  dplyr::rename("gene name"=geneName_parsed,
+                "max Fst"=maxFst,
+                "No. polymorphic sites non-syn"=n_polymorphic.ns,
+                "No.polymorphic sites syn"=n_polymorphic.syn,
+                "heterozygosity non-syn"=heterozygosity.ns,
+                "homozygosity minor non-syn"=minor_homoz.ns,
+                "pi non-syn"=pi.ns,
+                "Tajima's D non-syn"=tajima.ns,
+                "pi outlier non-syn"=pi.ns.outlier,
+                "D outlier non-syn"=tajima.ns.outlier)
+
+
+write.csv(imm, file = paste0(outdir,"/report/table_s6_result_outliers.csv"), row.names=FALSE)
+```
+
+```{r, eval=FALSE}
+#immune.summary<- scate.summary.out2 %>%
+#  filter(grepl("immune", immune_DEG)) %>%
+#  filter(tajima.ns.outlier!=0) %>%
+#  select(geneID,geneName_parsed,pop,maxFst,n_polymorphic.ns, n_polymorphic.syn,heterozygosity.ns,minor_homoz.ns,pi.ns,tajima.ns,pNpS,pnps.pi,pi.ns.outlier, tajima.ns.outlier)
+
+
+immune.summary<- scate.summary.out2[grepl("immune",scate.summary.out2$immune_DEG),]
+immune.summary$tajima.ns.outlier<- ifelse(immune.summary$tajima.ns.outlier==0,NA,immune.summary$tajima.ns.outlier)
+immune.summary$tajima.ns.outlier<- as.factor(immune.summary$tajima.ns.outlier)
+immune.summary<- immune.summary[!is.na(immune.summary$tajima.ns.outlier),]
+immune.summary$gene_id<- paste0(immune.summary$geneName_parsed, "_",immune.summary$geneID)
+immune.summary$gene_id<- factor(immune.summary$gene_id, levels=sort(unique(immune.summary$gene_id)))
+immune.summary<- immune.summary[order(immune.summary$gene_id),]
+immune.summary$pop<- factor(immune.summary$pop, levels=c("STER","KLDR","CEBO"))
+
+excl<- c(CFH_1="Scate06776",CFH_2="Scate06774",S100A9_1="Scate15945",S100A9_2="Scate15944",EDNRB="Scate13869",FBXO32="Scate05992",RPS6KA2="Scate13201",TOP2A="Scate08785",PIK3R1="Scate03437",IL23R="Scate96945",LDLR="Scate02071",JCHAIN="Scate12145",MHCI_1="Scate05866",MHCI_2="Scate05865",MHCI_3="Scate05859",MHCI_4="Scate05854",MHCI_5="Scate05845",MHCI_6="Scate05841",MHCI_7="Scate05837",MHCI_8="Scate05863",MHCI_9="Scate05840",AHSG="Scate10425",APLNR="Scate15445",BIRC2="Scate10189",BMI1="Scate09285",CHD2="Scate03554",CXADR="Scate09940",CYP27B1="Scate04444",DOCK6="Scate04069",SLC1A2="Scate12392",SLC1A4="Scate01312",SLC1A5="Scate12959",SLC46A2="Scate03814",POMGNT1="Scate07070",GPRC6A="Scate00937",MAPK="Scate04428",PDE12="Scate05440",MFSD6="Scate01544",NKAIN="Scate12656",RPSK="Scate00745",ST14="Scate13393",SPPL3="Scate15244",NFATC3="Scate14109",MCOLN3="Scate06894",RUNX1T1="Scate14315",ACP5="Scate04085",CYBB="Scate09792",DLL4="Scate02451",EDNRB="Scate0956",FBXO="Scate01148",FGF2="Scate12364",FLT1="Scate10101",GNAO1="Scate14000",IMPDH="Scate12052",IMPDH2="Scate05590",LGALS4="Scate03093",LGALS="Scate00104", NOX1="Scate13824",PIKR3="Scate07072",RHOC="Scate07324", SLC12A1="Scate14582",TOPB2="Scate09159",VDAC="Scate05098")
+
+immune.summary<- immune.summary[which(!immune.summary$geneID %in% excl),]
+ggplot(immune.summary, aes(x=pop, y = gene_id, fill=tajima.ns.outlier)) + geom_tile()  + 
+  peri_tile + 
+  labs(x="",y="") +
+  scale_fill_manual(values=c("#9bb6dc","#db9c9c")) +
+  theme(legend.position="none",
+        axis.text.x=element_text(angle=90,hjust=1, vjust=0.5))
+
+ggsave(filename=paste0(outdir,"/poster/immune_tajima.pdf"),device="pdf",bg="transparent",height=18,width=7, units="in")
+writeLines(unique(immune.summary$geneName_parsed),paste0(outdir,"/poster/immune_tajima.txt"))
+geom_boxplot(data=scate.summary.out2[which(grepl("immune",scate.summary.out2$immune_DEG)),],aes(x=pop,y=log10(heterozygosity.ns)))
+ggplot(data=scate.summary.out2[which(grepl("immune",scate.summary.out2$immune_DEG)),],aes(x=pop,y=log10(heterozygosity.ns))) + geom_boxplot()
+
+#+ geom_line(data=scate.summary.out2[which(grepl("immune",scate.summary.out2$immune_DEG)),], aes(x=pop, y=log10(heterozygosity.ns), group=geneID))
+```
+
+# References
