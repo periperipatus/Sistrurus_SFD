@@ -117,27 +117,6 @@ keep<- c("keep","pops","mass","outdir","datadir","DEG","immune","lower","upper",
 
 ```
 
-# Abstract
-
-Genes can contribute to whether a host is susceptible or recovers from a disease. Variation in these genes can be important for how a population responds to current and novel pathogens. However, experiments to characterize these genes are unethical to conduct in endangered species. Moreover, pathogens with sub-lethal effects, difficult diagnosis and/or hosts that are difficult to follow in the wild means that natural experimental data is scarce or absent. This is the case for snake fungal disease (caused by *Ophidiomyces ophidiicola*) in endangered Eastern massasauga rattlesnakes (*Sistrurus catenatus*). Here, we suggest that genes experimentally shown to be inolved in disease process in *Crotalus viridis* may provide a useful backdoor to narrowing down the set of SFD relevant genes, particularly those with signatures of selection within exposed species. We conduct diversity and SFS-based neutrality tests on a set of 1048 (actually a subset for this report) orthologs in two threatened *S. catenatus* populations in Ohio, and compare with outbred sister species *S. tergeminus*. We show that diversity in these genes is reduced in *S. catenatus*, particularly in populations with small N\[e\] (CEBO). However, MHC Class I paralogs are substantially more diverse than than others. Further, we identify a set of genes that appear to have non-synonymous sites under divergent selection in across the sampled *S. catenatus* populations.
-
-# Methods
-
-## Candidate gene selection
-
-We reasoned that genes that were functionally relevant to snake fungal disease resiliance/susceptibility in *Sistrurus catenatus* were from three main categories (@fig-venn)
-
--   Genes with known immune system function
-
--   Those genes previously identified as involved in disease process in *Crotalus viridis* by differential expression analysis [@mathur2024]
-
--   Genes under selection in *S. catenatus.* These genes were identified using the upper and lower 10% direction of selection (DoS) statistics on divergence and polymorphism data in synonymous and non-synonymous sites [@mathur2023]
-
-We reasoned that genes in multiple functional categories are more likely to be relevant to disease susceptibility/resistance than those involved in disease process alone. And that genes which show some evidence of on-going selection might be particularly important.
-
-We used `OrthoFinder` to identify orthologs between *C. viridis* and *S. catenatus* genome annotations. Then we linked the differentially expressed genes from *C. viridis* to its ortholog in *S. catenatus*, as a putative set of disease process genes in *S. catenatus*. The 855 unique DEGs in *C. viridis* corresponded to 1048 unique genes in *S. catenatus*.
-
-Our candidate set of immune genes were broadly based on immune and inflammatory processes. Immune genes were identified in *C. viridis* based on GO and KEGG terms for the three species used for functional annotation: *Anolis carolinensis*, *Python vittatus* and *Thamnophis sirtalis*. These genes were based on a set of GO terms derived from a GOSlim query of GO:0002376 (Immune system process), GO:0006954 (Inflammation) and the set of immune GO terms used in [@silver2022], and KEGG annotations in these species. The specific query terms are listed in [Table XX]{style="color:red"}. The genes for these species associated with these terms were downloaded using R packages `protti::fetch_quickgo` and `KEGGREST::keggGet`. Then, any immune genes from these species were considered a potential immune gene in *C. viridis*, and by orthology *S. catenatus*.
 
 ```{r}
 #| label: fig-venn
@@ -154,11 +133,7 @@ g<- ggvenn(genes, set_name_size = 6, text_size=5, stroke_size=0.4, show_percenta
 ggsave(filename=paste0(outdir,"/poster/genes_venn.pdf"), plot=g, device="pdf", height=, width=)
 ```
 
-## Selection in disease process genes.
-
-For this preliminary analysis we analysed all 31 DEGs that were identified as under selection in *S. catenatus* [@mathur2023], a subset of 100 DEGs, and a random set of 100 genes from the genome. We compared the largest *S. catenatus* population at Killdeer Plains Wildlife Area, OH (KLDR), to a small population at Cedar Bog, OH (CEBO). We further compared patterns against outbred sister species *S. tergeminus*, mapped to the same reference *S. catenatus* reference genome. We wanted to explore whether selection was ongoing in an outbred species, to compare the the effects in an outbred species with the bottlenecked *S. catenatus*.
-
-To explore whether there was evidence of selection, we used `angsd v0.940` to calculate nucleotide diversity (π), heterozygosity and Tajima's D separately for synonymous and non-synonymous sites per focal gene. We labelled degenerate sites using python script `degenotate v1.2.4`[@sackton2024]. 2- and 3-fold degenerate sites were labelled as non-synonymous if a variant was considered as such by `SnpEff v5.2` in a genotyped file for another project (Mathur et al Unpubl, [@cingolani2012program]).
+## Bash scripts
 
 ```{bash}
 #| label: degenotate.slurm
@@ -487,7 +462,7 @@ rm ${BAMDIR}/ingene/${POP}*
 rm ${BAMLISTDIR}/${POP}*
 ```
 
-We compared non-synonymous site diversity to synonymous site diversity, and to diversity in 1000 gene-desert regions on assembled chromosomes with a non-overlapping window-size of 25,000 bp. Gene-desert regions were at least 500 kb up- and down-stream from coding sequences [@mathur2023].
+
 
 ```{bash}
 #| label: job_genedesert_div.slurm
@@ -621,7 +596,6 @@ rm $BAMLISTDIR/${POP}.gd.bamlist
 rm $BAMLISTDIR/${POP}.genedesert.list
 ```
 
-Then we used `R v.4.4.0` to further analyse the diversity data [@rcoreteam2024]. We compared category means using non-parametric Wilcoxon rank-sum tests and Holm-Bonferroni adjustment for multiple tests. Genes that were outside the 5th and 95th percentile were considered outliers and likely candidates for ongoing selection.
 
 ## Local Adaptation - F~ST~
 
@@ -703,7 +677,7 @@ deg.fst<- deg.fst %>%
 #write.csv(deg.fst,"deg.fst.csv",sep="/"),quote=F,row.names=F)
 ```
 
-# Results & Discussion
+
 
 ## Within-population tests.
 
@@ -932,58 +906,6 @@ tajfig_up<- ggplot(pi.dm ,aes(x=pop_site, y=Tajima, color=pop_site)) +
 tajfig_up
 ```
 
-```{r nsvs-fud-configure}
-#| label: nsvs-fud-configure
-#| echo: false
-#| eval: false
-k.test<- pi.dm %>% 
-  select(pop_site,immune_DEG, type2, fud) %>%
-  group_by(immune_DEG) %>%
-  wilcox_test(fud~ pop_site) %>% 
-  adjust_pvalue(method="holm") %>%
-  add_significance() %>%
-  add_y_position() %>%
-  filter(word(group1,1,1)==word(group2,1,1))
-
-
-fudfig_up<- ggplot(pi.dm ,aes(x=pop_site, y=fud, color=pop_site)) +
-  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) +  
-  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
-  facet_wrap( ~ immune_DEG,scales="free",ncol=3) +
-  labs(y="Fu and Li's D",x="") +
-  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +
-  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") + 
-  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
-  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd) + 
-  theme(legend.position="top", legend.direction = "horizontal", legend.title=element_blank())
-```
-
-```{r nsvs-fuf-configure}
-#| label: nsvs-fuf-configure
-#| echo: false
-#| message: false
-#| eval: false
-k.test<- pi.dm %>% 
-  select(pop_site,immune_DEG, type2, fuf) %>%
-  group_by(immune_DEG) %>%
-  wilcox_test(fuf~ pop_site) %>% 
-  adjust_pvalue(method="holm") %>%
-  add_significance() %>%
-  add_y_position() %>%
-  filter(word(group1,1,1)==word(group2,1,1))
-
-
-fuffig_up<- ggplot(pi.dm ,aes(x=pop_site, y=fuf, color=pop_site)) +
-  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) +  
-  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
-  facet_wrap( ~ immune_DEG,scales="free",ncol=3) +
-  labs(y="Fu and Li's F",x="") +
-  scale_x_discrete(labels=rep(c("N","S"),3))  + peri_figure  +
-  scale_color_manual(values=viridispairs[c(1,3,4,6,10,12)],name="") + 
-  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) +
-  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd) + 
-  theme(legend.position="top", legend.direction = "horizontal", legend.title=element_blank())
-```
 
 ```{r fig-nsvs, eval=FALSE}
 #| label: fig-nsvs
@@ -1180,78 +1102,6 @@ mega.pi<- droplevels(mega.pi)
 
 ```
 
-```{r fig-gd-FuF}
-#| label: fig-gd-FuF
-#| echo: false
-#| message: false
-#| eval: false
-#| fig.cap: "Fu and Li's F in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
-k.test<- mega.pi %>% 
-  select(pop_class,pop, immune_DEG, type, fuf) %>%
-  group_by(pop) %>%
-  wilcox_test(fuf ~ pop_class) %>% 
-  add_y_position() %>%
-  filter(word(group1,1,1)==word(group2,1,1)) %>%
-  filter(grepl("desert",group1)) %>%
-  adjust_pvalue(method="holm") %>%
-  add_significance() 
-
-#singletons vs avg number variants
-megafuf.all<- ggplot(mega.pi,aes(x=pop_class, y=fuf, color=pop, group=pop_class)) +
-  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
-  geom_point(position=position_dodge(width=0.9), alpha=0.3) +
-  facet_grid(~pop, scales="free") +
-  labs(x="",y="Fu and Li's F") + peri_figure +
-  theme(legend.title = element_blank(), 
-        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5),
-        legend.position="top", 
-        legend.direction = "horizontal")  + 
-  scale_y_continuous(breaks=c(-3,-2,-1,0,1,2,3,4,5)) +
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
-  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
-  geom_hline(dat=confidences.pi, aes(yintercept=fuF_upper95, colour=pop,), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
-  geom_hline(dat=confidences.pi, aes(yintercept=fuF_lower95, colour=pop), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
-  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd, y.position=k.test$y.position[which(k.test$p.adj.signif!="ns")]-0.5)
-
-megafuf.all
-```
-
-```{r fig-gd-FuD}
-#| label: fig-gd-FuD
-#| echo: false
-#| message: false
-#| eval: false
-#| fig.cap: "Fu and Li's D in 1000 gene desert regions of 25k windows and non-synonymous sites in our focal genes"
-
-k.test<- mega.pi %>% 
-  select(pop_class,pop, immune_DEG, type, fud) %>%
-  group_by(pop) %>%
-  wilcox_test(fud ~ pop_class) %>% 
-  add_y_position() %>%
-  filter(word(group1,1,1)==word(group2,1,1)) %>%
-  filter(grepl("desert",group1)) %>%
-  adjust_pvalue(method="holm") %>%
-  add_significance() 
-
-#singletons vs total number variants
-megafud.all<- ggplot(mega.pi,aes(x=pop_class, y=fud, color=pop, group=pop_class)) +
-  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
-  geom_point(position=position_dodge(width=0.9), alpha=0.3) +
-  facet_grid(~pop, scales="free") +
-  labs(x="",y="Fu and Li's D") + peri_figure +
-  theme(legend.title = element_blank(), 
-        axis.text.x = element_text(angle=90, hjust=1, vjust=0.5),
-        legend.position="top", 
-        legend.direction = "horizontal")  + 
-  scale_y_continuous(breaks=c(-3,-2,-1,0,1,2,3,4,5)) +
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
-  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
-  geom_hline(dat=confidences.pi, aes(yintercept=fuD_upper95, colour=pop,), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
-  geom_hline(dat=confidences.pi, aes(yintercept=fuD_lower95, colour=pop), show.legend = FALSE, linetype="dashed",lwd=baselwd) + 
-  stat_pvalue_manual(k.test, label = "p.adj.signif", tip.length = 0.005,hide.ns=TRUE, label.size=geom.text.size, bracket.size = baselwd, y.position=k.test$y.position[which(k.test$p.adj.signif!="ns")]-0.2)
-
-megafud.all
-```
 
 ```{r summarise pi}
 #| label: summarise
@@ -1801,24 +1651,6 @@ ggsave(filename=paste0(outdir,"/fig_taj.png"),plot = megataj.all,height=130, wid
                 
 ```
 
-```{r fig-tajD-names}
-#| label: fig-tajD-names
-#| eval: false
-#| fig.cap: "synonymous vs non-synonymous Tajima's D. Extreme values are annotated (GLYATL3, MRM3), as well as outlier immune genes"
-
-d<- ggplot(scate.summary.out2, aes(x=tajima.syn,y=tajima.ns, colour=pop, alpha=n_polymorphic.ns, shape=as.factor(tajima.ns.outlier))) +
-  geom_point() + 
-   peri_figure +
-  labs(x="Synonymous Sites Tajima's D",y="Non-Synonymous Sites Tajima's D ") +
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="population") + 
-  scale_alpha_continuous(name="No. polymorphic NS") +
-  scale_shape_discrete(name="NS Tajima's D outlier") + 
-  geom_text_repel(aes(label=interesting), alpha=0.9, show.legend = FALSE, size=geom.text.size, max.overlaps = 24) +
-  scale_x_continuous(breaks=seq(-2,4,1)) + 
-  scale_y_continuous(breaks=seq(-2,4,1)) + coord_equal()
-
-d
-```
 
 ```{r degs}
 #| echo: false
@@ -1931,180 +1763,6 @@ ggplot(total3,aes(x=reg,y=number_genes, fill=tajima_direction)) +
 
 ```
 
-```{r fig-pNpS, eval=FALSE}
-#| label: fig-pNpS
-#| fig.cap: "A) number of polymorphic non-synonymous sites/number polymorphic synonymous sites B) Pn/Ps is not related to Tajima's D C) Genes with positive DoS (+1) do not appear to show strong signals of positive selection with Tajima's D D) Relationship between DoS and Pn/Ps"
-#| echo: false
-#| warning: false
-#| eval: false
-a<- ggplot(scate.summary[which(!is.na(scate.summary$pNpS) & !is.infinite(scate.summary$pNpS)),], aes(x=immune_DEG,y=pNpS, colour=pop)) +
-  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
-  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
-  geom_hline(yintercept=1, lwd=baselwd+0.3, colour="salmon", linetype="dashed") +
-  peri_figure +
-  labs(x="",y=expression(over(p[N],p[S]))) +
-  theme(axis.title.y = element_text(angle=0, hjust=1,vjust=0.5),
-        legend.title = element_blank())+
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
-  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE) + 
-  scale_y_continuous(breaks=seq(0,15,1))
-
-
-#b<- ggplot(scate.summary[which(!is.na(scate.summary$pnps.pi) & !is.infinite(scate.summary$pnps.pi)),], aes(x=immune_DEG,y=pnps.pi, colour=pop)) +
-#  geom_boxplot(lwd=baselwd, show.legend = FALSE,position=position_dodge(width=0.9),outlier.colour = NA) + 
-#  geom_point(position=position_dodge(width=0.9), alpha=0.3) + 
-#  geom_hline(yintercept=1, lwd=baselwd+0.3, colour="salmon", linetype="dashed") +
-#  peri_figure +
-#  labs(x="",y=expression(over(pi[N],pi[S]))) +
-#  theme(axis.title.y = element_text(angle=0, hjust=1,vjust=0.5),
-#        legend.title = element_blank())+
-#  scale_color_manual(values=viridispairs[c(3,6,12)],name="") + 
-#  stat_summary(fun = "mean",geom = "point", pch=4, stroke=0.5, size=3, position=position_dodge(width=0.9),show.legend = FALSE)  + 
-#  scale_y_continuous(breaks=seq(0,18,2))
-
-b<- ggplot(scate.summary.out[which(!is.na(scate.summary.out$pNpS) & !is.infinite(scate.summary.out$pNpS)),], aes(x=tajima.ns,y=pNpS, colour=pop, shape=as.factor(tajima.ns.outlier))) +
-  geom_point(alpha=0.5) + 
-   peri_figure +
-  labs(x="Non-synonymous Tajima's D",y=expression(over(p[N],p[S]))) +
-  theme(axis.title.y = element_text(angle=0, hjust=1,vjust=0.5),
-        legend.title = element_blank())+
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="")
-
-
-dos<- read.csv(paste0(datadir,"/Mathur_2023_PNAS/DoS.KLDRig.csv"))
-dos<- dos %>%
-  right_join(scate.summary.out, by="geneID")
-
-c<-ggplot(dos, aes(x=dos1,y=tajima.ns,colour = pop,shape=as.factor(tajima.ns.outlier))) + 
-  geom_point(alpha=0.5) + peri_figure +
-  labs(x="Direction of Selection (DoS)",y="Non-synonymous Tajima's D") + 
-  theme(legend.title = element_blank()) + 
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="")
-
-d<- ggplot(dos[which(!is.na(dos$pNpS) & !is.infinite(dos$pNpS)),], aes(x=dos1,y=pNpS,colour = pop,shape=as.factor(tajima.ns.outlier))) + 
-  geom_point(alpha=0.5) + peri_figure + 
-  labs(x="Direction of Selection (DoS)",y=expression(over(p[N],p[S]))) + 
-  theme(legend.title = element_blank(),
-        axis.title.y = element_text(angle=0, hjust=1,vjust=0.5)) + 
-  scale_color_manual(values=viridispairs[c(3,6,12)],name="")
-
-ggarrange(a,ggarrange(b,c,d, common.legend = TRUE, labels=c("B","C","D"), ncol=3), labels=c("A",""), nrow=2)
-```
-
-```{r fig-within-GO-STER, eval=FALSE}
-#| label: fig-within-GO-STER
-#| fig.cap: "Top GO terms for genes that have outlying non-synonymous Tajmia's D statistic."
-#| warning: false
-#read in the conversion between the parsed genenames and the ensembl IDs. I filled in missing ones based on manual search (Many of these were due to non-systematic errors in the gene name used for the original search)
-conv.ac<- read.csv(paste0(datadir,"/lists/gProfiler_acarolinensis_04-08-2024_10-42-48.csv"))
-colnames(conv.ac)[colnames(conv.ac)=="initial_alias"]<- "geneName_parsed"
-conv.ac2<- merge(scate.summary.out2, conv.ac, by="geneName_parsed")
-
-### STER
-ster.go<- conv.ac2 %>%
-  filter(pop=="STER" & converted_alias_manual_additions!="") %>%
-  mutate(gene_pop=paste0(geneID,pop)) %>%
-  filter(!duplicated(gene_pop) & tajima.ns.outlier==1)
-go_res<- gost(ster.go$converted_alias_manual_additions, organism="acarolinensis", significant=TRUE, evcodes=TRUE)
-go_res<- go_res$result
-go_res<- go_res[order(go_res$p_value),]
-go_res$pop<- "STER"
-go_res$parents<- as.character(go_res$parents)
-write.table(go_res, paste0(outdir,"/GO_STER_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
-
-### KLDR GO
-kldr.go<- conv.ac2 %>%
-  filter(pop=="KLDR" & converted_alias_manual_additions!="") %>%
-  mutate(gene_pop=paste0(geneID,pop)) %>%
-  filter(!duplicated(gene_pop) & tajima.ns.outlier==1)
-go_res<- gost(kldr.go$converted_alias_manual_additions, organism="acarolinensis", significant=TRUE, evcodes=TRUE)
-go_res<- go_res$result
-go_res<- go_res[order(go_res$p_value),]
-go_res$pop<- "KLDR"
-go_res$parents<- as.character(go_res$parents)
-write.table(go_res, paste0(outdir,"/GO_KLDR_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
-
-
-### CEBO GO
-cebo.go<- conv.ac2 %>%
-  filter(pop=="CEBO" & converted_alias_manual_additions!="") %>%
-  mutate(gene_pop=paste0(geneID,pop)) %>%
-  filter(!duplicated(gene_pop) & tajima.ns.outlier==1)
-go_res<- gost(cebo.go$converted_alias_manual_additions, organism="acarolinensis", significant=FALSE, evcodes=TRUE)
-go_res<- go_res$result
-go_res<- go_res[order(go_res$p_value),]
-go_res$pop<- "CEBO"
-go_res$parents<- as.character(go_res$parents)
-go_res<- go_res[1:10,]
-write.table(go_res, paste0(outdir,"/GO_CEBO_Tajima.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
-
-
-rownames(go_res)<-1:nrow(go_res)
-
-#weirdo<- go_res[go_res$intersection=="ENSACAG00000013078",] #just making sure we're getting all the genes.
-
-#go_res<- rbind(go_res,weirdo)
-go_out<- list()
-for(i in 1:nrow(go_res)){
-  sub<- go_res[i,]
-  if(grepl(",",sub$intersection)){
-    #i=1
-    ensg<- str_split_1(sub$intersection,"\\,")
-    sub2<- data.frame(p_value=rep(sub$p_value,length(ensg)),
-                    source=rep(sub$source, length(ensg)),
-                    term_name=rep(sub$term_name, length(ensg)),
-                    converted_alias_manual_additions=ensg)
-    go_out[[i]]<- sub2
-  }else{
-    sub$converted_alias_manual_additions<- sub$intersection
-
-    go_out[[i]]<- sub[,c("p_value","source","term_name","converted_alias_manual_additions")]
-  }
-}
-go_res2<- do.call("rbind",go_out)
-go_res2$term<- paste(go_res2$source,go_res2$term_name)
-
-go_res2<- merge(go_res2,conv.ac2, by="converted_alias_manual_additions")
-
-go_res2$gene<- paste(go_res2$geneID, go_res2$geneName_parsed)
-
-ggplot(go_res[1:10], aes(x=,y=term,fill=p_value)) + 
-  geom_tile() + peri_tile + coord_equal() +
-  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
-  labs(x="",y="")
-
-imm<- scate.summary.out2[grepl("immune",scate.summary.out2$immune_DEG),]
-```
-
-```{r, eval=FALSE}
-go_res<- list()
-
-for(p in pop3){
-  go<-read.table(paste0(outdir,"/GO_",p,"_Tajima.tsv"), sep="\t", header=TRUE)
-  go_res[[p]]<- go[which(!grepl("KEGG",go$term_id)),]
-}
-go_res<- do.call("rbind",go_res)
-
-go_freq<- go_res %>%
-  group_by(term_id) %>%
-  summarise(Freq=n())
-simMatrix <- calculateSimMatrix(go_freq$term_id,
-                                orgdb="org.Hs.eg.db",
-                                ont="BP",
-                                method="Rel")
-scores <- setNames(go_freq$Freq, go_freq$term_id)
-reducedTerms <- reduceSimMatrix(simMatrix,
-                               scores,
-                                threshold=0.7,
-                                orgdb="org.Hs.eg.db")
-
-colnames(reducedTerms)[colnames(reducedTerms)=="go"]<- "term_id"
-
-go<- go_res %>%
-  left_join(reducedTerms, by="term_id")
-edox2 <- enrichplot::pairwise_termsim(go)
-ggplot(go_res, aes(x=pop,y=term_name, fill = intersection_size)) + geom_tile(colour="grey50") + scale_fill_viridis(option="A", na.value="white", direction=-1, name="Number genes") + peri_tile
-``` 
 
 ### GO
 
@@ -3346,7 +3004,6 @@ phy<- phyper(q=length(unique(deg.labels95$geneID[deg.labels95$cat_immune!=""]))-
 length(deg.labels95$geneID[deg.labels95$geneID %in% scate.summary.out2$geneID[which(scate.summary.out2$tajima.ns.outlier!=0)]])
 ```
 
-To look more directly investigate population specific divergent selection we characterized F~ST~ for `r nrow(deg.fst)` non-synonymous SNPs in `r nrow(deg.labels)` DEGs with NS SNPs and compared with gene desert SNPs. Across all *S. catenatus* populations, `r nrow(deg.labels95)` SNPs in `r length(unique(deg.labels95$geneID))` genes were outside the 95th percentile of gene desert SNP F~ST~ values, or `r round((length(unique(deg.labels95$geneID))/length(unique(deg.labels$geneID)))*100,1)`of total non-synonymous SNPs measured (@fig-fst95). Of these outliers, `r round((length(unique(deg.labels95$geneID[deg.labels95$cat_immune!=""]))/length(unique(deg.labels95$geneID))*100),1)`% of these are immune or inflammation genes, which is not a significant enrichment using a hypergeometric test (p = `r phy`).
 
 ```{r fig-fst95}
 #| label: fig-fst95
@@ -3396,122 +3053,6 @@ ggsave(paste(outdir,"report","figures","fst-95.png",sep="/"), fst_plot, device="
 
 ```
 
-```{r}
-#| warning: false
-#| eval: false
-#| fig.cap: "Top rated GO terms for FST outliers"
-
-conv.fst<- conv.fst %>%
-  filter(!duplicated(geneID)) %>%
-  filter(converted_alias_manual_additions!="" & converted_alias_manual_additions!="None")
-
-go_res<- gost(conv.fst$converted_alias_manual_additions, organism="acarolinensis", significant=FALSE, evcodes=TRUE)
-go_res<- go_res$result
-go_res<- go_res[order(go_res$p_value),]
-rownames(go_res)<-1:nrow(go_res)
-go_res<- go_res[1:30,]
-
-go_out<- list()
-for(i in 1:nrow(go_res)){
-  sub<- go_res[i,]
-  if(grepl(",",sub$intersection)){
-    #i=1
-    ensg<- str_split_1(sub$intersection,"\\,")
-    sub2<- data.frame(p_value=rep(sub$p_value,length(ensg)),
-                    source=rep(sub$source, length(ensg)),
-                    term_name=rep(sub$term_name, length(ensg)),
-                    converted_alias_manual_additions=ensg)
-    go_out[[i]]<- sub2
-  }else{
-    sub$converted_alias_manual_additions<- sub$intersection
-
-    go_out[[i]]<- sub[,c("p_value","source","term_name","converted_alias_manual_additions")]
-  }
-}
-go_res<- do.call("rbind",go_out)
-go_res$term<- paste(go_res$source,go_res$term_name)
-go_res<- merge(go_res,conv.fst, by="converted_alias_manual_additions")
-
-go_res$gene<- paste(go_res$geneID, go_res$geneName_parsed)
-#remove the goterm with a long name for plotting purposes
-go_res<- go_res[!grepl("acting on paired donors", go_res$term_name),]
-
-ggplot(go_res, aes(x=gene,y=term,fill=p_value)) + 
-  geom_tile() + peri_tile + coord_equal() +
-  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) + 
-  labs(x="",y="")
-```
-
-```{r}
-#| label: fig-fst-GO
-#| warning: false
-#| eval: false
-#| fig.cap: "Top rated GO terms for FST outliers"
-
-deg.labels95$gene_composite<- paste0(deg.labels95$Anolis_GeneID_GCF.GAF,deg.labels95$geneID)
-go_results_fst<- enricher(unique(deg.labels95$gene_composite), 
-                           universe=go2gene_bp$gene_composite, 
-                           TERM2GENE = go2gene_bp, 
-                           TERM2NAME = go2name_bp)
-go_results_fst<- go_results_fst@result
-
-go_results_fst$immune<- ifelse(go_results_fst$ID %in% immune_GO,"immune","other")
-go_results_fst$Description<- factor(go_results_fst$Description, 
-                          levels=unique(go_results_fst$Description[order(go_results_fst$immune)]))
-
-
-ggplot(go_results_fst[which(go_results_fst$pvalue<0.05),], aes(y=Count, x=Description, fill=pvalue)) + 
-  geom_bar(stat="identity") + peri_figure +
-  labs(y="#genes",x="") + 
-   theme(axis.text.x = element_text(angle=90, 
-                                   hjust=1, 
-                                   vjust=0.5)) + 
-  scale_y_continuous(expand=c(0,0))
-#ggsave(filename=paste0(outdir,"/fig_FST_GO_sig.png"), plot=last_plot(), device="png",bg="white",width=460,height=130, units="mm") 
-
-write.table(go_results_fst, paste0(outdir,"/GO_FST.tsv"), quote=FALSE, row.names = FALSE, sep="\t")
-
-simMatrix <- calculateSimMatrix(go_results_fst$ID,
-                                orgdb="org.Hs.eg.db",
-                                ont="BP",
-                                method="Rel")
-scores <- setNames(go_results_fst$pvalue, go_results_fst$ID)
-reducedTerms_fst <- reduceSimMatrix(simMatrix,
-                               "uniqueness",
-                                threshold=0.7,
-                                orgdb="org.Hs.eg.db")
-
-reducedTerms_fst <- reducedTerms_fst %>%
-  dplyr::rename("ID"="go") %>%
-  right_join(go_results_fst,by="ID")
-
-reducedTerms_fst$immune<- ifelse(reducedTerms_fst$parent %in% immune_GO,"immune","other")
-reducedTerms_fst$parentTerm<- factor(reducedTerms_fst$parentTerm, 
-                          levels=unique(reducedTerms_fst$parentTerm[order(reducedTerms_fst$immune)]))
-
-reducedTerms_fst$term<- ifelse(grepl("MHC",reducedTerms_fst$term),
-                           "antigen processing and presentation\nof peptide antigen via MHC class I",
-                           as.character(reducedTerms_fst$term))
-
-fst_go<- ggplot(reducedTerms_fst[which(reducedTerms_fst$pvalue<0.05),], aes(x=term,y=Count, fill=pvalue)) + 
-  geom_bar(stat="identity") + peri_figure + 
-  scale_size_continuous(breaks=seq(2,12,by=2),range = c(1,3)) +
-  labs(x="",y="#genes") +
-  theme(axis.text.x = element_text(angle=90, 
-                                   hjust=1, 
-                                   vjust=0.5), 
-        strip.text.x = element_blank(),
-        legend.justification="top",
-        panel.spacing = unit(0, "lines")) + 
-  facet_grid(~parentTerm, scales="free",space="free_x") +
-  scale_fill_viridis(option="inferno") +
-  scale_y_continuous(expand=c(0,0),
-                     breaks = ~round(unique(pretty(.)))) 
-
-ggsave(filename=paste0(outdir,"/fig_FST_GO_sig.png"), plot=fst_go, device="png",bg="white",width=130,height=120, units="mm") 
-write.table(reducedTerms_fst,paste0(outdir,"/GO_FST_rrvgo.tsv"),row.names=FALSE,sep="\t")
-
-```
 
 ```{r terms fst}
 terms_fst<- gaf %>%
@@ -3674,13 +3215,6 @@ ggsave(filename=paste0(outdir,"/figure3.png"), plot=last_plot(), device="png",bg
 
 ```
 
-# Ideas for next time
-
--   Use phased SNPS to measure haplotype length (package REHH, with XP-EHH test for measuring population specific sweeps among multiple pops). This will allow more for linked selection and selection on non-coding regions. This wasn't really possible here because of issues with the way the VCF was filtered seemed to exclude a bunch of sites from *S. tergeminus* and made their diversity similar. However, this was based on looking at the filtering for the [@mathur2023], but only AN\<323 was applied with this dataset... which is essentially a missingness filter. So I think it means that there are a lot of unique sites that are variable in STER.
-
--   re-run Fu-Li's stats with *S. miliarus* as outgroup for *S. tergeminus* so they both can be directly.
-
--   simply characterize geographic genetic variation and selection in DEGs **and immune** genes across Ohio. Could do genome sliding windows of a few tests and then see if our genes overlap with regions outside of the chromosomal/genome wide averages. This would allow for linkage of synonymous and non-synonymous sites, as well as regulatory regions.
 
 
 # All results summarized
@@ -3860,38 +3394,4 @@ imm <- imm %>%
 write.csv(imm, file = paste0(outdir,"/report/table_s6_result_outliers.csv"), row.names=FALSE)
 ```
 
-```{r, eval=FALSE}
-#immune.summary<- scate.summary.out2 %>%
-#  filter(grepl("immune", immune_DEG)) %>%
-#  filter(tajima.ns.outlier!=0) %>%
-#  select(geneID,geneName_parsed,pop,maxFst,n_polymorphic.ns, n_polymorphic.syn,heterozygosity.ns,minor_homoz.ns,pi.ns,tajima.ns,pNpS,pnps.pi,pi.ns.outlier, tajima.ns.outlier)
 
-
-immune.summary<- scate.summary.out2[grepl("immune",scate.summary.out2$immune_DEG),]
-immune.summary$tajima.ns.outlier<- ifelse(immune.summary$tajima.ns.outlier==0,NA,immune.summary$tajima.ns.outlier)
-immune.summary$tajima.ns.outlier<- as.factor(immune.summary$tajima.ns.outlier)
-immune.summary<- immune.summary[!is.na(immune.summary$tajima.ns.outlier),]
-immune.summary$gene_id<- paste0(immune.summary$geneName_parsed, "_",immune.summary$geneID)
-immune.summary$gene_id<- factor(immune.summary$gene_id, levels=sort(unique(immune.summary$gene_id)))
-immune.summary<- immune.summary[order(immune.summary$gene_id),]
-immune.summary$pop<- factor(immune.summary$pop, levels=c("STER","KLDR","CEBO"))
-
-excl<- c(CFH_1="Scate06776",CFH_2="Scate06774",S100A9_1="Scate15945",S100A9_2="Scate15944",EDNRB="Scate13869",FBXO32="Scate05992",RPS6KA2="Scate13201",TOP2A="Scate08785",PIK3R1="Scate03437",IL23R="Scate96945",LDLR="Scate02071",JCHAIN="Scate12145",MHCI_1="Scate05866",MHCI_2="Scate05865",MHCI_3="Scate05859",MHCI_4="Scate05854",MHCI_5="Scate05845",MHCI_6="Scate05841",MHCI_7="Scate05837",MHCI_8="Scate05863",MHCI_9="Scate05840",AHSG="Scate10425",APLNR="Scate15445",BIRC2="Scate10189",BMI1="Scate09285",CHD2="Scate03554",CXADR="Scate09940",CYP27B1="Scate04444",DOCK6="Scate04069",SLC1A2="Scate12392",SLC1A4="Scate01312",SLC1A5="Scate12959",SLC46A2="Scate03814",POMGNT1="Scate07070",GPRC6A="Scate00937",MAPK="Scate04428",PDE12="Scate05440",MFSD6="Scate01544",NKAIN="Scate12656",RPSK="Scate00745",ST14="Scate13393",SPPL3="Scate15244",NFATC3="Scate14109",MCOLN3="Scate06894",RUNX1T1="Scate14315",ACP5="Scate04085",CYBB="Scate09792",DLL4="Scate02451",EDNRB="Scate0956",FBXO="Scate01148",FGF2="Scate12364",FLT1="Scate10101",GNAO1="Scate14000",IMPDH="Scate12052",IMPDH2="Scate05590",LGALS4="Scate03093",LGALS="Scate00104", NOX1="Scate13824",PIKR3="Scate07072",RHOC="Scate07324", SLC12A1="Scate14582",TOPB2="Scate09159",VDAC="Scate05098")
-
-immune.summary<- immune.summary[which(!immune.summary$geneID %in% excl),]
-ggplot(immune.summary, aes(x=pop, y = gene_id, fill=tajima.ns.outlier)) + geom_tile()  + 
-  peri_tile + 
-  labs(x="",y="") +
-  scale_fill_manual(values=c("#9bb6dc","#db9c9c")) +
-  theme(legend.position="none",
-        axis.text.x=element_text(angle=90,hjust=1, vjust=0.5))
-
-ggsave(filename=paste0(outdir,"/poster/immune_tajima.pdf"),device="pdf",bg="transparent",height=18,width=7, units="in")
-writeLines(unique(immune.summary$geneName_parsed),paste0(outdir,"/poster/immune_tajima.txt"))
-geom_boxplot(data=scate.summary.out2[which(grepl("immune",scate.summary.out2$immune_DEG)),],aes(x=pop,y=log10(heterozygosity.ns)))
-ggplot(data=scate.summary.out2[which(grepl("immune",scate.summary.out2$immune_DEG)),],aes(x=pop,y=log10(heterozygosity.ns))) + geom_boxplot()
-
-#+ geom_line(data=scate.summary.out2[which(grepl("immune",scate.summary.out2$immune_DEG)),], aes(x=pop, y=log10(heterozygosity.ns), group=geneID))
-```
-
-# References

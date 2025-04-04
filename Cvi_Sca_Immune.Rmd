@@ -19,6 +19,8 @@ Using total set of Cviridis/Scatenatus/Stergiminus orthologs.
 library(stringr)
 library(ggvenn)
 library(tidyr)
+library(ggplot2)
+library(ggpubr)
 setwd("~/Library/CloudStorage/OneDrive-TheOhioStateUniversity/Rattlesnakes/Scate_SFD/analysis")
 ortho<- read.table("../data/Mason unpubl/Orthogroups.tsv", fill=TRUE, sep="\t", header=TRUE)
 colnames(ortho)<- c("Orthogroup","geneID","Scate","Sterg")
@@ -97,90 +99,6 @@ skinTreat$GeneID<- trimws(skinTreat$GeneID)
 #create a list of unique gene IDs for possible disease genes
 total<- rbind(liverTreat, liverInter, kidneyTreat, kidneyInter, skinTreat)
 length(unique(total$GeneID)) #how many unique geneIDs are here.
-```
-
-
-
-```{r DEG summary, eval=FALSE, echo=FALSE}
-Cvi_immune_annot<- read.table("../data/candidate genes/Cvi_immune_annot.txt", header=TRUE, sep="\t", quote="\"")
-Cvi_immune<- Cvi_immune_annot$geneID
-liverTreat_immune<- liverTreat[which(liverTreat$GeneID %in% Cvi_immune),]
-liverInter_immune<- liverInter[which(liverTreat$GeneID %in% Cvi_immune),]
-
-kidneyTreat_immune<- kidneyTreat[which(kidneyTreat$GeneID %in% Cvi_immune),]
-kidneyInter_immune<- kidneyInter[which(kidneyInter$GeneID %in% Cvi_immune),]
-
-skinTreat_immune<- skinTreat[which(skinTreat$GeneID %in% Cvi_immune),]
-
-immune_overlap<- list(skinTreat=skinTreat$GeneID, kidneyTreat=kidneyTreat$GeneID, liverTreat=liverTreat$GeneID, Cvi_immune=Cvi_immune)
-ggvenn(immune_overlap) + labs("Immune genes overlapping in Treatment Effect")
-
-immune_overlap<- list(skinTreat=skinTreat_immune$GeneID, kidneyTreat=kidneyTreat_immune$GeneID, liverTreat=liverTreat_immune$GeneID)
-ggvenn(immune_overlap) + labs("Immune genes overlapping in Treatment Effect")
-
-immune_overlap<- list(kidneyTreat=kidneyTreat_immune$GeneID, kidneyInter=kidneyInter_immune$GeneID, liverTreat=liverTreat_immune$GeneID, liverInter=liverInter_immune$GeneID)
-ggvenn(immune_overlap) + labs("Immune Gene Overlap in Liver and Kidney")
-```
-
-```{r for Samarth and Andrew, eval=FALSE, echo=FALSE}
-library(stringr)
-library(ggvenn)
-library(tidyr)
-
-liverTreat<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Liver/genelist/Liver_DGE_TreatOnly_withAnn.csv")
-liverTreat$GeneID<- trimws(liverTreat$GeneID) #making sure mismatches don't occure due to random white-space at ends
-liverTemp<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Liver/genelist/Liver_DGE_TempOnly_withAnn.csv")
-liverTemp$GeneID<- trimws(liverTemp$GeneID)
-liverInter<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Liver/genelist/Liver_DGE_Inter_withAnn.csv")
-liverInter$GeneID<- trimws(liverInter$GeneID)
-liverDEGs<- list(liverTemp=liverTemp$GeneID, liverTreat=liverTreat$GeneID, liverInter=liverInter$GeneID)
-ggvenn(liverDEGs)
-
-kidneyInter<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Kidney/genelist/Kidney_DGE_Inter_withAnn.csv")
-kidneyInter$GeneID<- trimws(kidneyInter$GeneID)
-kidneyTreat<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Kidney/genelist/Kidney_DGE_TreatOnly_withAnn.csv")
-kidneyTreat$GeneID<- trimws(kidneyTreat$GeneID)
-skinTreat<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Skin/genelist/Skin_DGE_TreatOnly_withAnn.csv")
-skinTreat$GeneID<- trimws(skinTreat$GeneID)
-
-#create a list of unique gene IDs for possible disease genes
-total<- rbind(liverTreat, liverInter, kidneyTreat, kidneyInter, skinTreat)
-length(unique(total$GeneID))
-
-#read in orthogroups file
-ortho<- read.table("../data/Mason unpubl/Orthogroups.tsv", fill=TRUE, sep="\t")
-colnames(ortho)<- c("Orthogroup","geneID","Scate","Sterg")
-
-#make into same format as other gene ids by removing "_cds" and "-mRNA-1"
-ortho$geneID<- gsub("_cds","",ortho$geneID)
-ortho$geneID<- gsub("-mRNA-1", "", ortho$geneID)
-#make it so there is one line per gene in the Crotalus column
-ortho_dispersed<- ortho %>% separate_longer_delim(geneID, delim = ",") 
-ortho_dispersed$geneID<- trimws(ortho_dispersed$geneID)
-
-ortho_unassigned<- read.table("../data/Mason unpubl/Orthogroups_UnassignedGenes.tsv", fill=TRUE, sep="\t", header=TRUE)
-ortho_unassigned$Cviridis<- gsub("_cds","", ortho_unassigned$Cviridis)
-ortho_unassigned$Cviridis<- gsub("-mRNA-1","", ortho_unassigned$Cviridis)
-
-#the file Andrew used.
-all_degs<- read.table("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/genelists/All_DEGs.txt", header=TRUE, sep="\t")
-all_degs$GeneID<- trimws(all_degs$GeneID)
-
-
-ortholog_deg<- list(ortho_IDs=unique(ortho_dispersed$geneID), DEGs_separate_github=unique(total$GeneID), all_degs.txt=unique(all_degs$GeneID), ortho_unassigned=unique(ortho_unassigned$Cviridis))
-ggvenn(ortholog_deg) + labs(title="Gene IDs for orthos searched and Github DEG list")
-
-errant<- unique(total$GeneID)[!unique(total$GeneID) %in% unique(ortho_dispersed$geneID)]
-errant<- errant[!errant %in% unique(ortho_unassigned$Cviridis)]
-
-#what if I'm not accounting for temperature related DEGs. 
-liverTemp<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Liver/genelist/Liver_DGE_TempOnly_withAnn.csv")
-kidneyTemp<- read.csv("https://raw.githubusercontent.com/samarth8392/SFDTranscriptomics/main/DataFiles/Kidney/genelist/Kidney_DGE_TempOnly_withAnn.csv")
-total<- rbind(liverTreat, liverInter, kidneyTreat, kidneyInter, skinTreat, liverTemp, kidneyTemp)
-length(unique(total$GeneID)) #how many unique geneIDs are here.
-
-ortholog_deg<- list(ortho_IDs=unique(ortho_dispersed$geneID), DEGs_IDs=unique(total$GeneID), all_degs=unique(all_degs$GeneID))
-ggvenn(ortholog_deg) + labs(title="Gene IDs for orthos searched and both Github DEG lists with temp incl.")
 ```
 
 
@@ -282,105 +200,6 @@ Sca_annot_upper<- Sca_annot_upper[grepl("-RA",Sca_annot_upper$Scate),]
 length(unique(Sca_annot_upper$bed)) #249 - this equals the input file length the actual file is longer because of paralogy 
 ```
 
-```{r, eval=FALSE}
-#read in the "geneInfo" files which I think is the same as Dataset S02 on the PNAS paper 
-lower2<- read.csv("https://raw.githubusercontent.com/samarth8392/FGDvNGD/main/data/lower10_geneInfo.csv")
-upper2<- read.csv("https://raw.githubusercontent.com/samarth8392/FGDvNGD/main/data/upper10_geneInfo.csv")
-
-
-coords<-list(geneInfo_upper=upper2$Coordinates, geneInfo_lower=lower2$Coordinates, lower_bed=lower$bed, upper_bed=upper$bed)
-ggvenn(coords) + labs(title="Based on Coordinates")
-
-#ok so presumably the ones that dont match are unnannotated genes. 
-geneIDs<-list(geneInfo_upper=upper2$geneID, geneInfo_lower=lower2$geneID, lower_bed=unique(gsub("-RA","",Sca_annot_lower$Scate)), upper_bed=unique(gsub("-RA","",Sca_annot_upper$Scate)))
-ggvenn(geneIDs) + labs(title="Based on GeneID (Scate[0-9])")
-
-
-#Check that TLR2 TGFBR2 is in there...
-#TLR2=Scate08833: Scate-Z:43574000-43576551 #Based off DATASET S02 PNAS.
-Sca_annot_upper[grepl("TLR2",Sca_annot_upper$Note,ignore.case=TRUE),]
-#no entries
-Sca_annot_upper[grepl("Toll-like receptor 2",Sca_annot_upper$Note,ignore.case=TRUE),]
-#Zero entries
-Sca_Cvi[grepl("Toll-like receptor 2",Sca_Cvi$Note,ignore.case=TRUE),]
-#Scate15681
-Sca_annot[grepl("Toll-like receptor 2",Sca_annot$Note,ignore.case=TRUE),]
-#Scate15681-RA
-#what is that gene ID?
-Sca_annot_upper[grepl("Scate08833",Sca_annot_upper$Scate,ignore.case=TRUE),]
-#Kelch-like 
-Sca_annot_upper$Note[grepl("Scate-Z:43574000-43576551", Sca_annot_upper$bed)]
-
-#original untampered (only subsetted for mRNA) annotation
-Sca_annot$Scate[grepl("Scate-Z:43574000-43576551", Sca_annot$bed)]
-#Scate08833
-Sca_annot$Note[grepl("Scate-Z:43574000-43576551", Sca_annot$bed)]
-#"Similar to Kelch-like protein 11-like (Crotalus adamanteus OX=8729)"
-#Unix grep "Scate08833" on Scate_HiC_rnd4.all.putative.function.gff verified this.
-
-
-
-#TGFBR2=Scate08218 or Scate-Z:10140063-10145046
-Sca_annot_upper[grepl("TGFBR2",Sca_annot_upper$Note,ignore.case=TRUE),]
-#no entries
-Sca_annot_upper[grepl("Latent transforming growth factor beta binding protein 1",Sca_annot_upper$Note,ignore.case=TRUE),]
-#Zero entries
-Sca_Cvi[grepl("Latent transforming growth factor beta binding protein 1",Sca_Cvi$Note,ignore.case=TRUE),]
-#Scate00614
-Sca_annot[grepl("Latent transforming growth factor beta binding protein 1",Sca_annot$Note,ignore.case=TRUE),]
-#Scate00614-RA
-#what is that gene ID?
-Sca_annot_upper[grepl("Scate08218",Sca_annot_upper$Scate,ignore.case=TRUE),]
-#LOC103280462: Uncharacterized protein
-Sca_annot_upper$Note[grepl("Scate-Z:10140063-10145046", Sca_annot_upper$bed)]
-#LOC103280462: Uncharacterized protein
-
-#original untampered (only subsetted for mRNA) annotation
-Sca_annot$Scate[grepl("Scate-Z:10140063-10145046", Sca_annot$bed)]
-#Scate08833
-Sca_annot$Note[grepl("Scate-Z:10140063-10145046", Sca_annot$bed)]
-#"Similar to Kelch-like protein 11-like (Crotalus adamanteus OX=8729)"
-#Unix grep "Scate08833" on Scate_HiC_rnd4.all.putative.function.gff verified this.
-```
-
-
-does mean site-depth correlate with DoS?
-
-```{r mean site depth vs DoS, eval=FALSE}
-library(ggplot2)
-library(ggpubr)
-source("config.R")
-DoS<- read.csv("../data/Mathur 2023 PNAS/DoS.KLDRig.csv")
-DoS$Scate<- paste0(DoS$geneID,"-RA")
-DoS<- merge(DoS, Sca_annot[,c("Scate","seqid","start","end")], by="Scate")
-
-
-pnas_depth<- read.table("../data/Mason unpubl/vcf_stats/all121.10x.wholegenome.SNPs.KLDR.ldepth.mean",header=TRUE, sep="\t")
-
-g=DoS$geneID[1]
-out<- list()
-for(g in unique(DoS$geneID)){
-  gene<- DoS[DoS$geneID==g,]
-  sub<- pnas_depth[pnas_depth$CHROM==gene$seqid,]
-  sub<- sub[sub$POS>=gene$start,]
-  sub<- sub[sub$POS<=gene$end,]
-  length<- gene$end-gene$start
-  gene$meanD_length<- mean(sub$MEAN_DEPTH)/length
-  gene$meanD<- mean(sub$MEAN_DEPTH)
-  out[[g]]<- gene
-}
-
-out2<- do.call("rbind",out)
-
-a<- ggplot(out2, aes(x=meanD, y=dos1)) + geom_point() + labs(title="mean Depth against DoS", x="mean(mean depth)", y="DoS")
-b<- ggplot(out2, aes(x=meanD_length, y=dos1)) + geom_point() + labs(title="mean Depth against DoS", x="mean(mean depth)/gene length(bases)", y="DoS")
-
-g<- ggarrange(a,b, nrow=2, ncol=1)
-g
-ggsave(filename=paste0(outdir,"tempfigure_DepthvDoS.png"), plot=g, width=100, height=200, units="mm", device="png", bg="white", dpi="print")
-   
-```    
-
 
 
 ```{r}
@@ -451,21 +270,21 @@ length(unique(ortho_dispersed_annot$geneID[which(ortho_dispersed_annot$Orthogrou
 length(unique(ortho_dispersed_annot$Scate[which(ortho_dispersed_annot$Orthogroup=="OG0000003")]))
 
 #Snpsift takes gene IDs...
-output.file <- file(paste0("../data/lists/genelist_lower10.txt"), "wb")
-write.table(unique(Sca_annot_lower$Scate),file=output.file,row.names = FALSE,
-            col.names = FALSE,
-            quote = FALSE,
-            append = FALSE,
-            sep = "")
-close(output.file)
-
-output.file <- file(paste0("../data/lists/genelist_upper10.txt"), "wb")
-write.table(unique(Sca_annot_upper$Scate),file=output.file,row.names = FALSE,
-            col.names = FALSE,
-            quote = FALSE,
-            append = FALSE,
-            sep = "")
-close(output.file)
+#output.file <- file(paste0("../data/lists/genelist_lower10.txt"), "wb")
+#write.table(unique(Sca_annot_lower$Scate),file=output.file,row.names = FALSE,
+#            col.names = FALSE,
+#            quote = FALSE,
+#            append = FALSE,
+#            sep = "")
+#close(output.file)
+#
+#output.file <- file(paste0("../data/lists/genelist_upper10.txt"), "wb")
+#write.table(unique(Sca_annot_upper$Scate),file=output.file,row.names = FALSE,
+#            col.names = FALSE,
+#            quote = FALSE,
+#            append = FALSE,
+#            sep = "")
+#close(output.file)
 
 output.file <- file(paste0("../data/lists/genelist_SFD_DEGs.txt"), "wb")
 write.table(unique(Sca_DEGs$Scate),file=output.file,row.names = FALSE,
@@ -504,7 +323,7 @@ write.table(unique(DoS$geneID),file=output.file,row.names = FALSE,
 close(output.file)
 ```
 
-```{r bed files, eval-FALSE}
+```{r bed files, eval=FALSE}
 #read in a fresh gff.
 Sca_annot<- readGFF("../../reference_genome/Scate_HiC_rnd4.all.putative.function.gff")
 nrow(Sca_annot)
@@ -698,49 +517,6 @@ Sca_DEGs_single<- Sca_DEGs[!Sca_DEGs$Orthogroup %in% multis$Orthogroup,]
 
 SFD_DoS_overlap<- list(lower_DoS=Sca_annot_lower_single$Scate, upper_DoS=Sca_annot_upper_single$Scate, Sca_immune=unique(Cvi_immune_annot2_single$Scate), DEG_ortho=Sca_DEGs_single$Scate)
 ggvenn(SFD_DoS_overlap) + labs(title="Overlap between PNAS DoS, Sca Immune Genes and Cvi DEGs single copy orthologs ONLY")
-```
-
-
-Are multicopy genes more common in a particular category?
-
-```{r}
-overall_single<- nrow(ortho_summary[!ortho_summary$Orthogroup %in% multis$Orthogroup,])
-overall_multi<- nrow(multis)
-DEGs_single<- nrow(Sca_DEGs_single)
-DEGs_multi<- length(unique(Sca_DEGs$Orthogroup[Sca_DEGs$Orthogroup %in% multis$Orthogroup]))
-immune_single<- nrow(Cvi_immune_annot2_single)
-immune_multi<- length(unique(Cvi_immune_annot2$Orthogroup[Cvi_immune_annot2$Orthogroup %in% multis$Orthogroup]))
-lowerDoS_single<- length(unique(Sca_annot_lower_single$Orthogroup))
-lowerDoS_multi<- length(unique(Sca_annot_lower$Orthogroup[Sca_annot_lower$Orthogroup %in% multis$Orthogroup]))
-upperDoS_single<- length(unique(Sca_annot_upper_single$Orthogroup))
-upperDoS_multi<- length(unique(Sca_annot_upper$Orthogroup[Sca_annot_upper$Orthogroup %in% multis$Orthogroup]))
-
-orthos_summary<- as.data.frame(rbind(overall_single,overall_multi, DEGs_single, DEGs_multi, immune_single,immune_multi,lowerDoS_single,lowerDoS_multi, upperDoS_single, upperDoS_multi))
-colnames(orthos_summary)<- c("No_Orthogroups")
-orthos_summary$specific<- rownames(orthos_summary)
-orthos_summary$Ortho_type<- word(orthos_summary$specific,2,2,sep="_")
-orthos_summary$dataset<- word(orthos_summary$specific,1,1,sep="_")
-
-ggplot(orthos_summary, aes(x = dataset, y=No_Orthogroups, fill=Ortho_type)) + geom_bar(stat="identity",position=position_dodge())
-
-overall_single_pc<- (overall_single/length(unique(ortho_summary$Orthogroup)))*100
-overall_multi_pc<-(overall_multi/length(unique(ortho_summary$Orthogroup)))*100
-DEGs_single_pc<- (DEGs_single/length(unique(Sca_DEGs$Orthogroup)))*100
-DEGs_multi_pc<- (DEGs_multi/length(unique(Sca_DEGs$Orthogroup)))*100
-immune_single_pc<- (immune_single/length(unique(Cvi_immune_annot2$Orthogroup)))*100
-immune_multi_pc<- (immune_multi/length(unique(Cvi_immune_annot2$Orthogroup)))*100
-lowerDoS_single_pc<- (lowerDoS_single/length(unique(Sca_annot_lower$Orthogroup)))*100
-lowerDoS_multi_pc<- (lowerDoS_multi/length(unique(Sca_annot_lower$Orthogroup)))*100
-upperDoS_single_pc<- (upperDoS_single/length(unique(Sca_annot_upper$Orthogroup)))*100
-upperDoS_multi_pc<- (upperDoS_multi/length(unique(Sca_annot_upper$Orthogroup)))*100
-
-orthos_summary<- as.data.frame(rbind(overall_single_pc,overall_multi_pc, DEGs_single_pc, DEGs_multi_pc, immune_single_pc,immune_multi_pc,lowerDoS_single_pc,lowerDoS_multi_pc, upperDoS_single_pc, upperDoS_multi_pc))
-colnames(orthos_summary)<- c("No_Orthogroups")
-orthos_summary$specific<- rownames(orthos_summary)
-orthos_summary$Ortho_type<- word(orthos_summary$specific,2,2,sep="_")
-orthos_summary$dataset<- word(orthos_summary$specific,1,1,sep="_")
-
-ggplot(orthos_summary, aes(x = dataset, y=No_Orthogroups, fill=Ortho_type)) + geom_bar(stat="identity") + labs(y="Percent type of Orthology")
 ```
 
 
